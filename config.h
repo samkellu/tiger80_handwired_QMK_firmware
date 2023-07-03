@@ -1,26 +1,15 @@
-// Copyright 2023 sam kelly (@samkellu)
-// SPDX-License-Identifier: GPL-2.0-or-later
-
 #pragma once
+#define HAL_USE_I2C TRUE
+#define I2C_DRIVER I2CD0
+#define I2C1_SDA_PIN GP8
+#define I2C1_SCL_PIN GP9
 
-#define OLED_DISPLAY_128x64
+#define OLED_DISPLAY_128X64
+#define OLED_DISPLAY_WIDTH 128
+#define OLED_DISPLAY_HEIGHT 64
 
-#define I2C_DRIVER I2CD1
-#define I2C1_SDA_PIN GP3
-#define I2C1_SCL_PIN GP2
-
-/*
- * Feature disable options
- *  These options are also useful to firmware size reduction.
- */
-
-/* disable debug print */
-//#define NO_DEBUG
-
-/* disable print */
-//#define NO_PRINT
-
-/* disable action features */
-//#define NO_ACTION_LAYER
-//#define NO_ACTION_TAPPING
-//#define NO_ACTION_ONESHOT
+#include_next <mcuconf.h> // for i2c
+#undef RP_I2C_USE_I2C0
+#define RP_I2C_USE_I2C0 TRUE
+#undef RP_I2C_USE_I2C1
+#define RP_I2C_USE_I2C1 FALSE
