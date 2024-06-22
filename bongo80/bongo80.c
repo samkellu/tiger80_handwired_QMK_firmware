@@ -30,6 +30,8 @@ uint32_t time;
 uint32_t game_time;
 uint32_t frame_time;
 uint8_t score;
+int gun_x = GUN_X;
+int gun_y = GUN_Y + 10;
 
 float pow2(float x) { return x * x; }
 
@@ -93,6 +95,7 @@ void doom_update(controls c) {
         }
     }
 
+
     for (int i = 0; i < SCREEN_WIDTH; i++) {
         oled_write_pixel(i, UI_HEIGHT, 1);
     }
@@ -107,11 +110,12 @@ void doom_update(controls c) {
     oled_write_P(PSTR("SCORE:"), false);
     oled_write(get_u8_str(score, ' '), false);
 
-    raycast(p, pa, shot_timer > 0);
+    raycast(p, pa);
+    draw_gun(c.f, shot_timer > 0);
 }
 
 // Runs a pseudo-3D raycasting algorithm on the environment around the player
-void raycast(vec2 p, int pa, bool show_flash) {
+void raycast(vec2 p, int pa) {
 
     float x3 = p.x;
     float y3 = p.y;
@@ -184,14 +188,32 @@ void raycast(vec2 p, int pa, bool show_flash) {
         //      }
 
         }
+    }    
+}
+
+void draw_gun(bool moving, bool show_flash) {
+
+    if (moving || gun_x != GUN_X) {
+        gun_x = GUN_X + 8 * sin((double) timer_elapsed(game_time) * 0.005);
     }
 
-    if (show_flash) {
-        oled_write_bmp_P(muzzle_flash_bmp, flash_size, FLASH_WIDTH, FLASH_HEIGHT, SCREEN_WIDTH/2 - FLASH_WIDTH/2 + 2, UI_HEIGHT - 3*FLASH_HEIGHT/4 - GUN_HEIGHT, false);
-    }
+    if (moving) {
+        gun_y = GUN_Y + 3 + 3 * cos((double) timer_elapsed(game_time) * 0.01);
     
-    oled_write_bmp_P(gun_bmp_mask, gun_size, GUN_WIDTH, GUN_HEIGHT, SCREEN_WIDTH/2 - GUN_WIDTH/2, UI_HEIGHT - GUN_HEIGHT, true);
-    oled_write_bmp_P(gun_bmp, gun_size, GUN_WIDTH, GUN_HEIGHT, SCREEN_WIDTH/2 - GUN_WIDTH/2, UI_HEIGHT - GUN_HEIGHT, false);
+    } else {
+        if (gun_x != GUN_X) {
+            int inc = abs(GUN_X - gun_x) > 2 ? 2 : 1;
+            gun_x += GUN_X > gun_x ? inc : -inc;
+        }
+        if (gun_y != GUN_Y) gun_y += GUN_Y > gun_y ? 1 : -1;
+    } 
+
+    oled_write_bmp_P(gun_bmp_mask, gun_size, GUN_WIDTH, GUN_HEIGHT, gun_x - GUN_WIDTH/2, gun_y - GUN_HEIGHT, true);
+    oled_write_bmp_P(gun_bmp, gun_size, GUN_WIDTH, GUN_HEIGHT, gun_x - GUN_WIDTH/2, gun_y - GUN_HEIGHT, false);
+
+    if (show_flash) {
+        oled_write_bmp_P(muzzle_flash_bmp, flash_size, FLASH_WIDTH, FLASH_HEIGHT, gun_x - FLASH_WIDTH/2 + 2, gun_y - 3*FLASH_HEIGHT/4 - GUN_HEIGHT, false);
+    }
 }
 
 // A classic https://en.wikipedia.org/wiki/Fast_inverse_square_root
@@ -272,8 +294,10 @@ void oled_write_bmp_P(const char* data, const uint16_t size, int width, int heig
             if (px) oled_write_pixel(x + col, y + row, !invert);
 
             if (col == width - 1) {
-                row++;
                 col = 0;
+                row++;
+                if (row + y >= UI_HEIGHT) return;
+
                 continue;
             }
 

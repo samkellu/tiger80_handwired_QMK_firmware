@@ -32,6 +32,9 @@
 #define PI 3.14159
 #define FRAME_TIME_MILLI 70
 
+#define GUN_X SCREEN_WIDTH / 2
+#define GUN_Y UI_HEIGHT
+
 
 // Defines the texture that a wall will have
 enum texture {
@@ -59,6 +62,11 @@ typedef struct controls {
   bool f;
   bool shoot;
 } controls;
+
+typedef struct enemy {
+  vec2 pos;
+  int health;
+} enemy;
 
 // +-----------------------------------------+
 // |                                         |
@@ -104,6 +112,11 @@ const wall walls[] PROGMEM = {
     {{{80, 130}, {80, 170}}, CHECK},
     {{{80, 170}, {40, 170}}, CHECK},
 };
+
+const enemy enemies[] PROGMEM = {
+  {{20, 150}, 5}
+};
+
 
 // Number of degrees per tick
 const int rotSpeed = 5;
@@ -256,7 +269,6 @@ static const char imp_bmp_mask[] PROGMEM = {
 
 const uint16_t imp_bmp_size = sizeof(imp_bmp);
 
-
 float pow2(float x);
 
 float dot(vec2 v, vec2 u);
@@ -273,9 +285,11 @@ float inv_sqrt(float num);
 
 void doom_setup(void);
 
+void draw_gun(bool moving, bool show_flash);
+
 void doom_update(controls c);
 
-void raycast(vec2 p, int pa, bool show_flash);
+void raycast(vec2 p, int pa);
 
 void vertical_line(int x, int half_length);
 
