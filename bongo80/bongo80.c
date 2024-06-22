@@ -105,16 +105,12 @@ void doom_update(controls c) {
     oled_write_P(PSTR("SCORE:"), false);
     oled_write(get_u8_str(score, ' '), false);
 
-    raycast(p, pa);
+    render_map(p, pa);
     draw_gun(c.f, shot_timer > 0);
 }
 
 // Runs a pseudo-3D raycasting algorithm on the environment around the player
-void raycast(vec2 p, int pa) {
-
-    float x3 = p.x;
-    float y3 = p.y;
-    float x4, y4;
+void render_map(vec2 p, int pa) {
 
     // Defines the number of rays
     for (int i = 0; i < 128; i+=2) {
@@ -122,8 +118,10 @@ void raycast(vec2 p, int pa) {
         float angle = (i * (fov / 127.0f)) - (fov / 2.0f);
 
         // Projects the endpoint of the ray
-        x4 = p.x + dov * cosf((pa + angle) * (PI / 180));
-        y4 = p.y + dov * sinf((pa + angle) * (PI / 180));
+        vec2 endpoint = {
+            p.x + dov * cosf((pa + angle) * (PI / 180)),
+            p.y + dov * sinf((pa + angle) * (PI / 180))
+        };
 
         float dist = 100000.0f;
         bool found = false;
@@ -132,22 +130,9 @@ void raycast(vec2 p, int pa) {
 
         // Checks if the vector from the camera to the ray's endpoint intersects any walls
         for (int w = 0; w < NUM_WALLS; w++) {
-            float x1 = walls[w].points[0].x;
-            float y1 = walls[w].points[0].y;
-            float x2 = walls[w].points[1].x;
-            float y2 = walls[w].points[1].y;
-
-            float denominator = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-
-            // vectors do not ever intersect
-            if (denominator == 0) continue;
-
-            float t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denominator;
-            float u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denominator;
-
-            // Case where the vectors intersect
-            if (t > 0 && t < 1 && u > 0) {
-                vec2 pt = { x1 + t * (x2 - x1), y1 + t * (y2 - y1) };
+            bool hit = false;
+            vec2 pt = raycast(walls[w].points[0], walls[w].points[1], p, endpoint, &hit);
+            if (hit) {
                 float ptDist2 = dist2(pt, p);
 
                 // Checks if the intersected wall is the closest to the camera
@@ -166,7 +151,7 @@ void raycast(vec2 p, int pa) {
             // Draws lines at the edges of walls
             int wall_len = 1 / inv_sqrt(dist2(cur_wall.points[0], cur_wall.points[1]));
             cur_edge2pt = 1 / inv_sqrt(cur_edge2pt);
-            if (cur_edge2pt < 1 || cur_edge2pt > wall_len - 1) {
+            if (cur_edge2pt < 2 || cur_edge2pt > wall_len - 2) {
                 vertical_line(i, length);
                 continue;
             }
@@ -183,7 +168,51 @@ void raycast(vec2 p, int pa) {
         //      }
 
         }
+
+        for (int j = 0; j < NUM_ENEMIES; j++) {
+            vec2 e = enemies[j].pos;
+            float enemy_dist = dist2(p, e);
+            if (found && enemy_dist >= dist) continue;
+
+            float d = 1 / inv_sqrt(point_ray_dist2(e, p, endpoint));
+            if (d > 8) continue;
+
+            bool is_left = (p.x - endpoint.x)*(e.y - endpoint.y) - (p.y - endpoint.y)*(e.x - endpoint.x) > 0;
+            int slice = (IMP_WIDTH / 2) + ((is_left ? -1 : 1) * (IMP_WIDTH / 2) * (d / 8));
+
+            enemy_dist = inv_sqrt(enemy_dist);
+            float slice_height = 2000 * enemy_dist;
+            int y_start = (700 * enemy_dist) + WALL_OFFSET;
+            if (y_start > 70) y_start = 70;
+            oled_set_cursor(0, 0);
+            oled_write(get_u16_str(slice_height, ' '), false);
+            oled_write(get_u16_str(y_start, ' '), false);
+
+            oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH / 8, IMP_HEIGHT, slice, slice_height, i, y_start);
+            // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH / 8, IMP_HEIGHT, slice, i+1, 2);
+        }
     }    
+}
+
+vec2 raycast(vec2 ls1, vec2 ls2, vec2 r1, vec2 r2, bool* hit) {
+
+    *hit = false;
+    vec2 ret = {-1, -1};
+    float denominator = (ls1.x - ls2.x) * (r1.y - r2.y) - (ls1.y - ls2.y) * (r1.x - r2.x);
+
+    // vectors do not ever intersect
+    if (denominator == 0) return ret;
+
+    float t = ((ls1.x - r1.x) * (r1.y - r2.y) - (ls1.y - r1.y) * (r1.x - r2.x)) / denominator;
+    float u = -((ls1.x - ls2.x) * (ls1.y - r1.y) - (ls1.y - ls2.y) * (ls1.x - r1.x)) / denominator;
+
+    // Case where the vectors intersect
+    if (t > 0 && t < 1 && u > 0) {
+        *hit = true;
+        ret = (vec2) { ls1.x + t * (ls2.x - ls1.x), ls1.y + t * (ls2.y - ls1.y) };
+    }
+
+    return ret;
 }
 
 void draw_gun(bool moving, bool show_flash) {
@@ -258,18 +287,23 @@ void check_line(int x, int half_length, bool phase) {
     }
 }
 
+float point_ray_dist2(vec2 p, vec2 u, vec2 v) {
+
+    vec2 up = sub(p, u);
+    vec2 uv = sub(v, u);
+    vec2 p_proj = add(proj(up, uv), u);
+    vec2 u_p_proj = sub(p_proj, u);
+
+    float k = uv.x != 0 ? u_p_proj.x / uv.x : u_p_proj.y / uv.y;
+    return k <= 0 ? dist2(p, u) : k >= 1 ? dist2(p, v) : dist2(p, p_proj);
+}
+
 bool collision_detection(vec2 p) {
 
     int collision_dist2 = COLLISION_DIST * COLLISION_DIST;
     for (int i = 0; i < NUM_WALLS; i++) {
         wall w = walls[i];
-        vec2 up = sub(p, w.points[0]);
-        vec2 uv = sub(w.points[1], w.points[0]);
-        vec2 p_proj = add(proj(up, uv), w.points[0]);
-        vec2 u_p_proj = sub(p_proj, w.points[0]);
-
-        float k = uv.x != 0 ? u_p_proj.x / uv.x : u_p_proj.y / uv.y;
-        float d2 = k <= 0 ? dist2(p, w.points[0]) : k >= 1 ? dist2(p, w.points[1]) : dist2(p, p_proj);
+        float d2 = point_ray_dist2(p, w.points[0], w.points[1]);
         if (d2 < collision_dist2) return true;
     }
 
@@ -295,6 +329,32 @@ void oled_write_bmp_P(const char* data, const uint16_t size, int width, int heig
 
             col++;
         }
+    }
+}
+
+void oled_write_texture_slice(const char* data, const char* mask, const uint16_t size, int row_bytes, int text_height, int slice_col, int height, int x, int y) {
+    
+    height = height > 50 ? 50 : height;
+    int height_written = 0;
+    for (int row = 0; row < text_height; row++) {
+        int byte_offset = slice_col / 8;
+        data += byte_offset;
+        mask += byte_offset;
+        int rem = slice_col - byte_offset * 8;
+
+        uint8_t c = pgm_read_byte(data);
+        uint8_t m = pgm_read_byte(mask);
+        bool px = c & (1 << (7 - rem));
+        bool pxm = m & (1 << (7 - rem));
+
+        while (height_written < height * row / text_height) {
+            if (px) oled_write_pixel(x, y - height + height_written, true);
+            if (pxm) oled_write_pixel(x, y - height + height_written, false);
+            height_written++;
+        }
+
+        data += row_bytes - byte_offset;
+        mask += row_bytes - byte_offset;
     }
 }
 
