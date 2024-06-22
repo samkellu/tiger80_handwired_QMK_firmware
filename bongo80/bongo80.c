@@ -72,13 +72,8 @@ void doom_update(controls c) {
     if (timer_elapsed(game_time) < START_TIME_MILLI) return;
 
     oled_clear();
-    if (c.shoot && shot_timer == 0) {
-        shot_timer = 5;
-    }
-
-    if (shot_timer > 0) {
-        shot_timer--;
-    }
+    if (c.shoot && shot_timer == 0) shot_timer = 5;
+    if (shot_timer > 0) shot_timer--;
 
     if (c.l) {
         pa = (pa - rotSpeed < 0 ? pa - rotSpeed + 360 : pa - rotSpeed);
@@ -89,10 +84,10 @@ void doom_update(controls c) {
     }
 
     if (c.f) {
-        vec2 pn = {p.x + 2 * cos(pa * (PI / 180)), p.y + 2 * sin(pa * (PI / 180))};
-        if (!collision_detection(pn)) {
-            p = pn;
-        }
+        vec2 pnx = {p.x + 2 * cos(pa * (PI / 180)), p.y};
+        vec2 pny = {p.x, p.y + 2 * sin(pa * (PI / 180))};
+        if (!collision_detection(pnx)) p.x = pnx.x;
+        if (!collision_detection(pny)) p.y = pny.y;
     }
 
 
@@ -193,11 +188,8 @@ void raycast(vec2 p, int pa) {
 
 void draw_gun(bool moving, bool show_flash) {
 
-    if (moving || gun_x != GUN_X) {
-        gun_x = GUN_X + 8 * sin((double) timer_elapsed(game_time) * 0.005);
-    }
-
     if (moving) {
+        gun_x = GUN_X + 8 * sin((double) timer_elapsed(game_time) * 0.005);
         gun_y = GUN_Y + 3 + 3 * cos((double) timer_elapsed(game_time) * 0.01);
     
     } else {
