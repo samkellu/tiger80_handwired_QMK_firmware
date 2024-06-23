@@ -22,16 +22,22 @@
 #include "doom.h"
 #include "math.h"
 
-// Player location and direction of camera
+// Player information
 vec2 p;
 int pa;
 int shot_timer;
+
+// Game management information
 uint32_t time;
 uint32_t game_time;
 uint32_t frame_time;
 uint8_t score;
+
+// Gun animation
 int gun_x = GUN_X;
 int gun_y = GUN_Y + 10;
+
+// =================== MATH =================== //
 
 float pow2(float x) { return x * x; }
 
@@ -49,209 +55,149 @@ vec2 proj(vec2 u, vec2 v) {
     return (vec2) {t * v.x, t * v.y};
 }
 
-void doom_setup(void) {
+float point_ray_dist2(vec2 p, segment s) {
 
-    // Runs intro sequence
-    oled_write_bmp_P(doom_logo, doom_logo_size, LOGO_WIDTH, LOGO_HEIGHT, 0, 0, false);
-    game_time = timer_read();
+    vec2 up = sub(p, s.u);
+    vec2 uv = sub(s.v, s.u);
+    vec2 p_proj = add(proj(up, uv), s.u);
+    vec2 u_p_proj = sub(p_proj, s.u);
 
-    // Initializes player state
-    p = (vec2) {20.0f, 20.0f};
-    pa = 0;
-    shot_timer = 0;
-    score = 0;
-
-    /*
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    */
+    float k = uv.x != 0 ? u_p_proj.x / uv.x : u_p_proj.y / uv.y;
+    return k <= 0 ? dist2(p, s.u) : k >= 1 ? dist2(p, s.v) : dist2(p, p_proj);
 }
 
-void doom_update(controls c) {
+// Returns the point of intersection between two line segments
+vec2 raycast(segment s1, segment s2, bool* hit) {
 
-    if (timer_elapsed(game_time) < START_TIME_MILLI) return;
+    *hit = false;
+    vec2 ret = {-1, -1};
+    float denominator = (s1.u.x - s1.v.x) * (s2.u.y - s2.v.y) - (s1.u.y - s1.v.y) * (s2.u.x - s2.v.x);
 
-    oled_clear();
-    if (c.shoot && shot_timer == 0) shot_timer = 5;
-    if (shot_timer > 0) shot_timer--;
+    // vectors do not ever intersect
+    if (denominator == 0) return ret;
 
-    if (c.l) {
-        pa = (pa - rotSpeed < 0 ? pa - rotSpeed + 360 : pa - rotSpeed);
+    float t = ((s1.u.x - s2.u.x) * (s2.u.y - s2.v.y) - (s1.u.y - s2.u.y) * (s2.u.x - s2.v.x)) / denominator;
+    float u = -((s1.u.x - s1.v.x) * (s1.u.y - s2.u.y) - (s1.u.y - s1.v.y) * (s1.u.x - s2.u.x)) / denominator;
+
+    // Case where the vectors intersect
+    if (t > 0 && t < 1 && u > 0) {
+        *hit = true;
+        ret = (vec2) { s1.u.x + t * (s1.v.x - s1.u.x), s1.u.y + t * (s1.v.y - s1.u.y) };
     }
 
-    if (c.r) {
-        pa = (pa + rotSpeed >= 360 ? pa + rotSpeed - 360 : pa + rotSpeed);
-    }
-
-    if (c.f) {
-        vec2 pnx = {p.x + 2 * cos(pa * (PI / 180)), p.y};
-        vec2 pny = {p.x, p.y + 2 * sin(pa * (PI / 180))};
-        if (!collision_detection(pnx)) p.x = pnx.x;
-        if (!collision_detection(pny)) p.y = pny.y;
-    }
-
-
-    for (int i = 0; i < SCREEN_WIDTH; i++) {
-        oled_write_pixel(i, UI_HEIGHT, 1);
-    }
-
-    // Displays the current game time
-    oled_set_cursor(1, 7);
-    oled_write_P(PSTR("TIME:"), false);
-    oled_write(get_u8_str((timer_elapsed(game_time) - START_TIME_MILLI) / 1000, ' '), false);
-
-    // Displays the players current score
-    oled_set_cursor(12, 7);
-    oled_write_P(PSTR("SCORE:"), false);
-    oled_write(get_u8_str(score, ' '), false);
-
-    render_map(p, pa);
-    draw_gun(c.f, shot_timer > 0);
-
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 0, IMP_HEIGHT, 0, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 1, IMP_HEIGHT, 1, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 2, IMP_HEIGHT, 2, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 3, IMP_HEIGHT, 3, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 4, IMP_HEIGHT, 4, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 5, IMP_HEIGHT, 5, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 6, IMP_HEIGHT, 6, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 7, IMP_HEIGHT, 7, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 8, IMP_HEIGHT, 8, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 9, IMP_HEIGHT, 9, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 10, IMP_HEIGHT, 10, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 11, IMP_HEIGHT, 11, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 12, IMP_HEIGHT, 12, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 13, IMP_HEIGHT, 13, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 14, IMP_HEIGHT, 14, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 15, IMP_HEIGHT, 15, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 16, IMP_HEIGHT, 16, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 17, IMP_HEIGHT, 17, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 18, IMP_HEIGHT, 18, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 19, IMP_HEIGHT, 19, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 20, IMP_HEIGHT, 20, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 21, IMP_HEIGHT, 21, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 22, IMP_HEIGHT, 22, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 23, IMP_HEIGHT, 23, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 24, IMP_HEIGHT, 24, 2);
-    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 25, IMP_HEIGHT, 25, 2);
-
+    return ret;
 }
 
-// Runs a pseudo-3D raycasting algorithm on the environment around the player
+// A classic https://en.wikipedia.org/wiki/Fast_inverse_square_root
+float inv_sqrt(float num) {
+    
+    float x2 = num * 0.5f, y = num;
+    uint32_t i;
+    memcpy(&i, &y, sizeof(float));
+    i = 0x5f3759df - ( i >> 1 );
+    memcpy(&y, &i, sizeof(float));
+    return y * (1.5f - ( x2 * y * y ));
+}
+
+bool collision_detection(vec2 p) {
+
+    int collision_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
+    for (int i = 0; i < NUM_WALLS; i++) {
+        segment w = walls[i];
+        float d2 = point_ray_dist2(p, w);
+        if (d2 < collision_dist2) return true;
+    }
+
+    collision_dist2 = ENEMY_COLLISION_DIST * ENEMY_COLLISION_DIST;
+    for (int i = 0; i < NUM_ENEMIES; i++) {
+        enemy e = enemies[i];
+        float d2 = dist2(p, e.pos);
+        if (d2 < collision_dist2) return true;
+    }
+
+    return false;
+}
+
+
+// =================== GRAPHICS =================== //
+
+
+// 2.5D raycast renderer for the map and entities around the player
 void render_map(vec2 p, int pa) {
 
-    // Defines the number of rays
-    for (int i = 0; i < 128; i+=2) {
-        // Calculates the angle at which the ray is projected
-        float angle = (i * (fov / 127.0f)) - (fov / 2.0f);
-
-        // Projects the endpoint of the ray
-        vec2 endpoint = {
-            p.x + dov * cosf((pa + angle) * (PI / 180)),
-            p.y + dov * sinf((pa + angle) * (PI / 180))
-        };
+    segment ray = {p, {0, 0}};
+    // Skips every second raycast on walls for performance
+    for (int i = 0; i < SCREEN_WIDTH; i += 2) {
+        float ray_angle = (i * FOV / 127.0f) - (FOV / 2.0f);
+        ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
+        ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
 
         float wall_dist = 100000.0f;
         bool hit_wall = false;
-        wall closest_wall;
+        segment closest_wall;
         int wall2pt;
 
-        // Checks if the vector from the camera to the ray's endpoint intersects any walls
-        for (int w = 0; w < NUM_WALLS; w++) {
+        // Checks if the ray from the camera intersects any walls
+        for (int j = 0; j < NUM_WALLS; j++) {
             bool hit = false;
-            vec2 pt = raycast(walls[w].points[0], walls[w].points[1], p, endpoint, &hit);
-            if (hit) {
-                float ptDist2 = dist2(pt, p);
+            vec2 pt = raycast(walls[j], ray, &hit);
+            if (!hit) continue;
 
-                // Checks if the intersected wall is the closest to the camera
-                if (ptDist2 < wall_dist) {
-                    wall_dist = ptDist2;
-                    hit_wall = true;
-                    closest_wall = walls[w];
-                    wall2pt = dist2(pt, closest_wall.points[0]);
-                }
+            // Checks if the intersected wall is the closest to the camera
+            float ptDist2 = dist2(pt, p);
+            if (ptDist2 < wall_dist) {
+                wall_dist = ptDist2;
+                hit_wall = true;
+                closest_wall = walls[j];
+                wall2pt = dist2(pt, closest_wall.u);
             }
         }
 
         if (hit_wall) {
-            int length = 1000 * inv_sqrt(wall_dist);
-
             // Draws lines at the edges of walls
-            int wall_len = 1 / inv_sqrt(dist2(closest_wall.points[0], closest_wall.points[1]));
+            int length = 1000 * inv_sqrt(wall_dist);
+            int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
             wall2pt = 1 / inv_sqrt(wall2pt);
             if (wall2pt < 2 || wall2pt > wall_len - 2) {
                 vertical_line(i, length);
                 continue;
             }
 
-            if (closest_wall.tex == CHECK) {
-                check_line(i, length, wall2pt % 10 < 5);
-            }
-        //      } else if (cur_wall.tex == STRIPE_H) {
-        //
-        //      } else if (cur_wall.tex == STRIPE_V) {
-        //
-        //      } else if (cur_wall.tex == STRIPE_D) {
-        //
-        //      }
-
+            check_line(i, length, wall2pt % 10 < 5);
         }
 
         for (int j = 0; j < NUM_ENEMIES; j++) {
-            render_enemy(i, p, endpoint, enemies[j], hit_wall, wall_dist);
-
             // Walls are rendered every second lateral pixel, to add detail we render every pixel of entities
-            if (render_enemy(i, p, endpoint, enemies[j], hit_wall, wall_dist)) {
-                angle = ((i + 1) * (fov / 127.0f)) - (fov / 2.0f);
-                endpoint = (vec2) {
-                    p.x + dov * cosf((pa + angle) * (PI / 180)),
-                    p.y + dov * sinf((pa + angle) * (PI / 180))
-                };
+            if (render_enemy(i, ray, enemies[j], hit_wall, wall_dist)) {
+                ray_angle = ((i + 1) * FOV / 127.0f) - (FOV / 2.0f);
+                ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
+                ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
 
-                render_enemy(i + 1, p, endpoint, enemies[j], hit_wall, wall_dist);
+                render_enemy(i + 1, ray, enemies[j], hit_wall, wall_dist);
             }
         }
     }    
 }
 
-bool render_enemy(int screen_x, vec2 r1, vec2 r2, enemy e, bool hit_wall, float wall_dist) {
+bool render_enemy(int screen_x, segment ray, enemy e, bool hit_wall, float wall_dist) {
 
-    float enemy_dist = dist2(r1, e.pos);
+    float enemy_dist = dist2(ray.u, e.pos);
     if (hit_wall && enemy_dist >= wall_dist) return false;
 
-    float d = 1 / inv_sqrt(point_ray_dist2(e.pos, r1, r2));
-    if (d > 5) return false;
+    // If ray is close to enemy, retrieve slice of enemy sprite based on orthogonal distance to ray 
+    float d = 1 / inv_sqrt(point_ray_dist2(e.pos, ray));
+    if (d > e.width) return false;
 
-    bool is_left = (r1.x - r2.x)*(e.pos.y - r2.y) - (r1.y - r2.y)*(e.pos.x - r2.x) > 0;
-    int slice = (IMP_WIDTH / 2) + ((is_left ? -1 : 1) * (IMP_WIDTH / 2) * (d / 5));
+    bool is_left = (ray.u.x - ray.v.x) * (e.pos.y - ray.v.y) - (ray.u.y - ray.v.y) * (e.pos.x - ray.v.x) > 0;
+    int slice = (IMP_WIDTH / 2) + ((is_left ? -1 : 1) * (IMP_WIDTH / 2) * (d / (float) e.width));
 
-    enemy_dist = inv_sqrt(enemy_dist);
+    enemy_dist = inv_sqrt(enemy_dist * 0.4);
+    enemy_dist = enemy_dist > 8 ? 8 : enemy_dist;
     float slice_height = 1500 * enemy_dist;
     int y_start = (1000 * enemy_dist) + WALL_OFFSET;
 
     oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, slice, slice_height, screen_x, y_start);
     return true;
-}
-
-vec2 raycast(vec2 ls1, vec2 ls2, vec2 r1, vec2 r2, bool* hit) {
-
-    *hit = false;
-    vec2 ret = {-1, -1};
-    float denominator = (ls1.x - ls2.x) * (r1.y - r2.y) - (ls1.y - ls2.y) * (r1.x - r2.x);
-
-    // vectors do not ever intersect
-    if (denominator == 0) return ret;
-
-    float t = ((ls1.x - r1.x) * (r1.y - r2.y) - (ls1.y - r1.y) * (r1.x - r2.x)) / denominator;
-    float u = -((ls1.x - ls2.x) * (ls1.y - r1.y) - (ls1.y - ls2.y) * (ls1.x - r1.x)) / denominator;
-
-    // Case where the vectors intersect
-    if (t > 0 && t < 1 && u > 0) {
-        *hit = true;
-        ret = (vec2) { ls1.x + t * (ls2.x - ls1.x), ls1.y + t * (ls2.y - ls1.y) };
-    }
-
-    return ret;
 }
 
 void draw_gun(bool moving, bool show_flash) {
@@ -276,17 +222,6 @@ void draw_gun(bool moving, bool show_flash) {
     if (show_flash) {
         oled_write_bmp_P(muzzle_flash_bmp, flash_size, FLASH_WIDTH, FLASH_HEIGHT, gun_x - FLASH_WIDTH/2 + 2, gun_y - 3*FLASH_HEIGHT/4 - GUN_HEIGHT, false);
     }
-}
-
-// A classic https://en.wikipedia.org/wiki/Fast_inverse_square_root
-float inv_sqrt(float num) {
-    
-    float x2 = num * 0.5f, y = num;
-    uint32_t i;
-    memcpy(&i, &y, sizeof(float));
-    i = 0x5f3759df - ( i >> 1 );
-    memcpy(&y, &i, sizeof(float));
-    return y * (1.5f - ( x2 * y * y ));
 }
 
 void vertical_line(int x, int half_length) {
@@ -326,36 +261,6 @@ void check_line(int x, int half_length, bool phase) {
     if (WALL_OFFSET + half_length < UI_HEIGHT) {
         oled_write_pixel(x, WALL_OFFSET + half_length, 1);
     }
-}
-
-float point_ray_dist2(vec2 p, vec2 u, vec2 v) {
-
-    vec2 up = sub(p, u);
-    vec2 uv = sub(v, u);
-    vec2 p_proj = add(proj(up, uv), u);
-    vec2 u_p_proj = sub(p_proj, u);
-
-    float k = uv.x != 0 ? u_p_proj.x / uv.x : u_p_proj.y / uv.y;
-    return k <= 0 ? dist2(p, u) : k >= 1 ? dist2(p, v) : dist2(p, p_proj);
-}
-
-bool collision_detection(vec2 p) {
-
-    int collision_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
-    for (int i = 0; i < NUM_WALLS; i++) {
-        wall w = walls[i];
-        float d2 = point_ray_dist2(p, w.points[0], w.points[1]);
-        if (d2 < collision_dist2) return true;
-    }
-
-    collision_dist2 = ENEMY_COLLISION_DIST * ENEMY_COLLISION_DIST;
-    for (int i = 0; i < NUM_ENEMIES; i++) {
-        enemy e = enemies[i];
-        float d2 = dist2(p, e.pos);
-        if (d2 < collision_dist2) return true;
-    }
-
-    return false;
 }
 
 void oled_write_bmp_P(const char* data, const uint16_t size, int width, int height, int x, int y, bool invert) {
@@ -409,7 +314,67 @@ void oled_write_texture_slice(const char* data, const char* mask, const uint16_t
 }
 
 
+// =================== GAME LOGIC =================== //
+
+
+void doom_setup(void) {
+
+    // Runs intro sequence
+    oled_write_bmp_P(doom_logo, doom_logo_size, LOGO_WIDTH, LOGO_HEIGHT, 0, 0, false);
+    game_time = timer_read();
+
+    // Initializes player state
+    p = (vec2) {20.0f, 20.0f};
+    pa = 0;
+    shot_timer = 0;
+    score = 0;
+}
+
+void doom_update(controls c) {
+
+    if (timer_elapsed(game_time) < START_TIME_MILLI) return;
+
+    oled_clear();
+    if (c.shoot && shot_timer == 0) shot_timer = 5;
+    if (shot_timer > 0) shot_timer--;
+
+    if (c.l) {
+        pa -= pa - ROTATION_SPEED < 0 ? ROTATION_SPEED + 360 : ROTATION_SPEED;
+    }
+
+    if (c.r) {
+        pa += pa + ROTATION_SPEED >= 360 ? ROTATION_SPEED - 360 : ROTATION_SPEED;
+    }
+
+    if (c.f) {
+        vec2 pnx = {p.x + 2 * cos(pa * (PI / 180)), p.y};
+        vec2 pny = {p.x, p.y + 2 * sin(pa * (PI / 180))};
+        if (!collision_detection(pnx)) p.x = pnx.x;
+        if (!collision_detection(pny)) p.y = pny.y;
+    }
+
+
+    for (int i = 0; i < SCREEN_WIDTH; i++) {
+        oled_write_pixel(i, UI_HEIGHT, 1);
+    }
+
+    // Displays the current game time
+    oled_set_cursor(1, 7);
+    oled_write_P(PSTR("TIME:"), false);
+    oled_write(get_u8_str((timer_elapsed(game_time) - START_TIME_MILLI) / 1000, ' '), false);
+
+    // Displays the players current score
+    oled_set_cursor(12, 7);
+    oled_write_P(PSTR("SCORE:"), false);
+    oled_write(get_u8_str(score, ' '), false);
+
+    render_map(p, pa);
+    draw_gun(c.f, shot_timer > 0);
+}
+
+
 // =================== BONGO CAT =================== //
+
 
 // Animation frame sequences
 const char* idle_no_caps[] = {idle_0, idle_0, idle_0, idle_0, idle_1, idle_2, idle_1, idle_0};
