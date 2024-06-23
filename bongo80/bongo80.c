@@ -107,6 +107,34 @@ void doom_update(controls c) {
 
     render_map(p, pa);
     draw_gun(c.f, shot_timer > 0);
+
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 0, IMP_HEIGHT, 0, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 1, IMP_HEIGHT, 1, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 2, IMP_HEIGHT, 2, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 3, IMP_HEIGHT, 3, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 4, IMP_HEIGHT, 4, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 5, IMP_HEIGHT, 5, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 6, IMP_HEIGHT, 6, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 7, IMP_HEIGHT, 7, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 8, IMP_HEIGHT, 8, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 9, IMP_HEIGHT, 9, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 10, IMP_HEIGHT, 10, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 11, IMP_HEIGHT, 11, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 12, IMP_HEIGHT, 12, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 13, IMP_HEIGHT, 13, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 14, IMP_HEIGHT, 14, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 15, IMP_HEIGHT, 15, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 16, IMP_HEIGHT, 16, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 17, IMP_HEIGHT, 17, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 18, IMP_HEIGHT, 18, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 19, IMP_HEIGHT, 19, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 20, IMP_HEIGHT, 20, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 21, IMP_HEIGHT, 21, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 22, IMP_HEIGHT, 22, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 23, IMP_HEIGHT, 23, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 24, IMP_HEIGHT, 24, 2);
+    // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, 25, IMP_HEIGHT, 25, 2);
+
 }
 
 // Runs a pseudo-3D raycasting algorithm on the environment around the player
@@ -123,10 +151,10 @@ void render_map(vec2 p, int pa) {
             p.y + dov * sinf((pa + angle) * (PI / 180))
         };
 
-        float dist = 100000.0f;
-        bool found = false;
-        wall cur_wall;
-        int cur_edge2pt;
+        float wall_dist = 100000.0f;
+        bool hit_wall = false;
+        wall closest_wall;
+        int wall2pt;
 
         // Checks if the vector from the camera to the ray's endpoint intersects any walls
         for (int w = 0; w < NUM_WALLS; w++) {
@@ -136,28 +164,28 @@ void render_map(vec2 p, int pa) {
                 float ptDist2 = dist2(pt, p);
 
                 // Checks if the intersected wall is the closest to the camera
-                if (ptDist2 < dist) {
-                    dist = ptDist2;
-                    found = true;
-                    cur_wall = walls[w];
-                    cur_edge2pt = dist2(pt, cur_wall.points[0]);
+                if (ptDist2 < wall_dist) {
+                    wall_dist = ptDist2;
+                    hit_wall = true;
+                    closest_wall = walls[w];
+                    wall2pt = dist2(pt, closest_wall.points[0]);
                 }
             }
         }
 
-        if (found) {
-            int length = 1000 * inv_sqrt(dist);
+        if (hit_wall) {
+            int length = 1000 * inv_sqrt(wall_dist);
 
             // Draws lines at the edges of walls
-            int wall_len = 1 / inv_sqrt(dist2(cur_wall.points[0], cur_wall.points[1]));
-            cur_edge2pt = 1 / inv_sqrt(cur_edge2pt);
-            if (cur_edge2pt < 2 || cur_edge2pt > wall_len - 2) {
+            int wall_len = 1 / inv_sqrt(dist2(closest_wall.points[0], closest_wall.points[1]));
+            wall2pt = 1 / inv_sqrt(wall2pt);
+            if (wall2pt < 2 || wall2pt > wall_len - 2) {
                 vertical_line(i, length);
                 continue;
             }
 
-            if (cur_wall.tex == CHECK) {
-                check_line(i, length, cur_edge2pt % 10 < 5);
+            if (closest_wall.tex == CHECK) {
+                check_line(i, length, wall2pt % 10 < 5);
             }
         //      } else if (cur_wall.tex == STRIPE_H) {
         //
@@ -170,28 +198,39 @@ void render_map(vec2 p, int pa) {
         }
 
         for (int j = 0; j < NUM_ENEMIES; j++) {
-            vec2 e = enemies[j].pos;
-            float enemy_dist = dist2(p, e);
-            if (found && enemy_dist >= dist) continue;
+            render_enemy(i, p, endpoint, enemies[j], hit_wall, wall_dist);
 
-            float d = 1 / inv_sqrt(point_ray_dist2(e, p, endpoint));
-            if (d > 8) continue;
+            // Walls are rendered every second lateral pixel, to add detail we render every pixel of entities
+            if (render_enemy(i, p, endpoint, enemies[j], hit_wall, wall_dist)) {
+                angle = ((i + 1) * (fov / 127.0f)) - (fov / 2.0f);
+                endpoint = (vec2) {
+                    p.x + dov * cosf((pa + angle) * (PI / 180)),
+                    p.y + dov * sinf((pa + angle) * (PI / 180))
+                };
 
-            bool is_left = (p.x - endpoint.x)*(e.y - endpoint.y) - (p.y - endpoint.y)*(e.x - endpoint.x) > 0;
-            int slice = (IMP_WIDTH / 2) + ((is_left ? -1 : 1) * (IMP_WIDTH / 2) * (d / 8));
-
-            enemy_dist = inv_sqrt(enemy_dist);
-            float slice_height = 2000 * enemy_dist;
-            int y_start = (700 * enemy_dist) + WALL_OFFSET;
-            if (y_start > 70) y_start = 70;
-            oled_set_cursor(0, 0);
-            oled_write(get_u16_str(slice_height, ' '), false);
-            oled_write(get_u16_str(y_start, ' '), false);
-
-            oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH / 8, IMP_HEIGHT, slice, slice_height, i, y_start);
-            // oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH / 8, IMP_HEIGHT, slice, i+1, 2);
+                render_enemy(i + 1, p, endpoint, enemies[j], hit_wall, wall_dist);
+            }
         }
     }    
+}
+
+bool render_enemy(int screen_x, vec2 r1, vec2 r2, enemy e, bool hit_wall, float wall_dist) {
+
+    float enemy_dist = dist2(r1, e.pos);
+    if (hit_wall && enemy_dist >= wall_dist) return false;
+
+    float d = 1 / inv_sqrt(point_ray_dist2(e.pos, r1, r2));
+    if (d > 5) return false;
+
+    bool is_left = (r1.x - r2.x)*(e.pos.y - r2.y) - (r1.y - r2.y)*(e.pos.x - r2.x) > 0;
+    int slice = (IMP_WIDTH / 2) + ((is_left ? -1 : 1) * (IMP_WIDTH / 2) * (d / 5));
+
+    enemy_dist = inv_sqrt(enemy_dist);
+    float slice_height = 1500 * enemy_dist;
+    int y_start = (1000 * enemy_dist) + WALL_OFFSET;
+
+    oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, slice, slice_height, screen_x, y_start);
+    return true;
 }
 
 vec2 raycast(vec2 ls1, vec2 ls2, vec2 r1, vec2 r2, bool* hit) {
@@ -217,16 +256,18 @@ vec2 raycast(vec2 ls1, vec2 ls2, vec2 r1, vec2 r2, bool* hit) {
 
 void draw_gun(bool moving, bool show_flash) {
 
+    // Walking animation
     if (moving) {
         gun_x = GUN_X + 8 * sin((double) timer_elapsed(game_time) * 0.005);
         gun_y = GUN_Y + 3 + 3 * cos((double) timer_elapsed(game_time) * 0.01);
     
+    // Slowly move gun back to centre when not moving
     } else {
+        if (gun_y != GUN_Y) gun_y += GUN_Y > gun_y ? 1 : -1;
         if (gun_x != GUN_X) {
             int inc = abs(GUN_X - gun_x) > 2 ? 2 : 1;
             gun_x += GUN_X > gun_x ? inc : -inc;
         }
-        if (gun_y != GUN_Y) gun_y += GUN_Y > gun_y ? 1 : -1;
     } 
 
     oled_write_bmp_P(gun_bmp_mask, gun_size, GUN_WIDTH, GUN_HEIGHT, gun_x - GUN_WIDTH/2, gun_y - GUN_HEIGHT, true);
@@ -300,10 +341,17 @@ float point_ray_dist2(vec2 p, vec2 u, vec2 v) {
 
 bool collision_detection(vec2 p) {
 
-    int collision_dist2 = COLLISION_DIST * COLLISION_DIST;
+    int collision_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
     for (int i = 0; i < NUM_WALLS; i++) {
         wall w = walls[i];
         float d2 = point_ray_dist2(p, w.points[0], w.points[1]);
+        if (d2 < collision_dist2) return true;
+    }
+
+    collision_dist2 = ENEMY_COLLISION_DIST * ENEMY_COLLISION_DIST;
+    for (int i = 0; i < NUM_ENEMIES; i++) {
+        enemy e = enemies[i];
+        float d2 = dist2(p, e.pos);
         if (d2 < collision_dist2) return true;
     }
 
@@ -332,29 +380,31 @@ void oled_write_bmp_P(const char* data, const uint16_t size, int width, int heig
     }
 }
 
-void oled_write_texture_slice(const char* data, const char* mask, const uint16_t size, int row_bytes, int text_height, int slice_col, int height, int x, int y) {
+void oled_write_texture_slice(const char* data, const char* mask, const uint16_t size, int text_width, int text_height, int slice_col, int slice_height, int x, int y_start) {
     
-    height = height > 50 ? 50 : height;
     int height_written = 0;
+    int byte_offset = slice_col / 8;
+    int bit_offset = slice_col - byte_offset * 8;  
+
     for (int row = 0; row < text_height; row++) {
-        int byte_offset = slice_col / 8;
         data += byte_offset;
         mask += byte_offset;
-        int rem = slice_col - byte_offset * 8;
 
         uint8_t c = pgm_read_byte(data);
         uint8_t m = pgm_read_byte(mask);
-        bool px = c & (1 << (7 - rem));
-        bool pxm = m & (1 << (7 - rem));
 
-        while (height_written < height * row / text_height) {
-            if (px) oled_write_pixel(x, y - height + height_written, true);
-            if (pxm) oled_write_pixel(x, y - height + height_written, false);
+        bool px = c & (1 << (7 - bit_offset));
+        bool pxm = m & (1 << (7 - bit_offset));
+        
+        while (height_written < slice_height * row / text_height) {
+            if (y_start - slice_height + height_written >= UI_HEIGHT) return;
+            if (px) oled_write_pixel(x, y_start + height_written - slice_height, true);
+            if (pxm) oled_write_pixel(x, y_start + height_written - slice_height, false);
             height_written++;
         }
 
-        data += row_bytes - byte_offset;
-        mask += row_bytes - byte_offset;
+        byte_offset = (text_width + bit_offset) / 8;
+        bit_offset = text_width + bit_offset - byte_offset * 8;
     }
 }
 
