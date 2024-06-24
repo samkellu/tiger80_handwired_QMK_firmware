@@ -59,7 +59,7 @@ typedef struct controls {
 typedef struct enemy {
   vec2 pos;
   int health;
-  int width;
+  sprite s;
 } enemy;
 
 typedef struct sprite {
@@ -69,6 +69,12 @@ typedef struct sprite {
   const uint8_t width;
   const uint8_t height;
 } sprite;
+
+typedef struct depth_buf_info {
+  int depth;
+  bool phase;
+  int length;
+} depth_buf_info;
 
 // +-----------------------------------------+
 // |                                         |

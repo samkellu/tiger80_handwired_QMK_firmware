@@ -126,6 +126,10 @@ bool collision_detection(vec2 p) {
 void render_map(vec2 p, int pa) {
 
     segment ray = {p, {0, 0}};
+
+    // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
+    depth_buf_info depth_buf[SCREEN_WIDTH];
+    
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
         float ray_angle = (i * FOV / 127.0f) - (FOV / 2.0f);
@@ -135,6 +139,7 @@ void render_map(vec2 p, int pa) {
         float wall_dist = 100000.0f;
         bool hit_wall = false;
         segment closest_wall;
+        depth_buf_info info = {0, 0, 0};
         int wall2pt;
 
         // Checks if the ray from the camera intersects any walls
@@ -153,30 +158,76 @@ void render_map(vec2 p, int pa) {
             }
         }
 
+        info.depth = wall_dist;
+
         if (hit_wall) {
             // Draws lines at the edges of walls
-            int length = 1000 * inv_sqrt(wall_dist);
+            info.length = 1000 * inv_sqrt(wall_dist);
             int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
             wall2pt = 1 / inv_sqrt(wall2pt);
             if (wall2pt < 2 || wall2pt > wall_len - 2) {
-                vertical_line(i, length);
+                vertical_line(i, info.length);
                 continue;
             }
-
-            check_line(i, length, wall2pt % 10 < 5);
+            
+            info.phase = wall2pt % 10 < 5;
+            check_line(i, info.length, info.phase);
         }
 
-        for (int j = 0; j < NUM_ENEMIES; j++) {
-            // Walls are rendered every second lateral pixel, to add detail we render every pixel of entities
-            if (render_enemy(i, ray, enemies[j], hit_wall, wall_dist)) {
-                ray_angle = ((i + 1) * FOV / 127.0f) - (FOV / 2.0f);
-                ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
-                ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
+        depth_buf[i] = info;
+        depth_buf[i+1] = info;
+    }
 
-                render_enemy(i + 1, ray, enemies[j], hit_wall, wall_dist);
+    float cone_l = (FOV / 127.0f) - (FOV / 2.0f);
+    float cone_r = ((SCREEN_WIDTH - 1) * FOV / 127.0f) - (FOV / 2.0f);
+
+    for (int j = 0; j < NUM_ENEMIES; j++) {
+        enemy e = enemies[j];
+        enemy_angle = atan2(e.pos.x - p.x, e.pos.y - p.y);
+
+        if (enemy_angle <= cone_r && enemy_angle >= cone_l) {
+            // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
+            // Redraw walls at those pixels where depth is less than enemy distance.
+            float enemy_dist2 = dist2(e.pos, p);
+            float enemy_dist = 1 / inv_sqrt(enemy_dist2);
+            int enemy_screen_x = SCREEN_WIDTH * (enemy_angle - cone_l) / (cone_r - cone_l);
+            float enemy_side_angle = atan(e.width, enemy_dist);
+            int enemy_l = SCREEN_WIDTH * (enemy_angle - enemy_side_angle - cone_l) / (cone_r - cone_l);
+            int enemy_r = SCREEN_WIDTH * (enemy_angle + enemy_side_angle - cone_l) / (cone_r - cone_l);
+
+            bool draw = false;
+            for (int k = enemy_l; k < enemy_r; k++) {
+                if (depth_buf[k] > enemy_dist2) {
+                    draw = true;
+                    break;
+                }
             }
+
+            if (!draw) continue;
+            
+            enemy_dist = enemy_dist > 8 ? 8 : enemy_dist;
+            int scale_height = e.s.height * 1500 * enemy_dist; // ?? really big??? Probably??
+            int scale_width = e.s.width * 1500 * enemy_dist;
+            int y_start = (1000 * enemy_dist) + WALL_OFFSET;
+
+            oled_write_bmp_P_scaled(e.s, scale_height, scale_width, enemy_l, y_start);
+
+            for (int k = enemy_l; k < enemy_r; k++) {
+                if (depth_buf[k].depth < enemy_dist2) {
+                    check_line(k, info.length, info.phase);
+                }
+            }
+            
         }
-    }    
+
+        // Walls are rendered every second lateral pixel, to add detail we render every pixel of entities
+        if (render_enemy(i, ray, enemies[j], hit_wall, wall_dist)) {
+            ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
+            ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
+
+            render_enemy(i + 1, ray, enemies[j], hit_wall, wall_dist);
+        }
+    }
 }
 
 bool render_enemy(int screen_x, segment ray, enemy e, bool hit_wall, float wall_dist) {
