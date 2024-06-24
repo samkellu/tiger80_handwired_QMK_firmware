@@ -62,6 +62,14 @@ typedef struct enemy {
   int width;
 } enemy;
 
+typedef struct sprite {
+  const char* mask;
+  const char* bmp;
+  const uint16_t size;
+  const uint8_t width;
+  const uint8_t height;
+} sprite;
+
 // +-----------------------------------------+
 // |                                         |
 // |                                         |

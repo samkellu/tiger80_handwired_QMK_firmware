@@ -285,6 +285,43 @@ void oled_write_bmp_P(const char* data, const uint16_t size, int width, int heig
     }
 }
 
+
+// TODO: Add lr cutoffs? 
+// Render walls, save to zbuffer
+// Render enemies from left most  ray intersection, add range to zbuffer
+// 
+void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x, int y) {
+
+    int row = 0, col = 0, draw_col = 0, draw_row = 0;
+    for (int i = 0; i < img.size; i++) {
+        uint8_t c = pgm_read_byte(img.bmp++);
+        uint8_t m = pgm_read_byte(img.mask++);
+        for (int j = 0; j < 8; j++) {
+            bool px = c & (1 << (7 - j));
+            bool pxm = ms & (1 << (7 - j));
+
+            while (draw_row < draw_height * row / img.height) {
+                for (int k = draw_col; k < draw_width * col / img.width; k++) {
+                    if (px) oled_write_pixel(x + k, y + draw_row, true);
+                    if (pxm) oled_write_pixel(x + k, y + draw_row, false);
+                }
+
+                draw_row++;
+            }
+
+            draw_row = draw_width * col / img.width;
+            if (col == img.width - 1) {
+                if (++row + y >= UI_HEIGHT) return;
+
+                col = 0;
+                continue;
+            }
+
+            col++;
+        }
+    }
+}
+
 void oled_write_texture_slice(const char* data, const char* mask, const uint16_t size, int text_width, int text_height, int slice_col, int slice_height, int x, int y_start) {
     
     int height_written = 0;
