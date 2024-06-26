@@ -56,12 +56,6 @@ typedef struct controls {
   bool shoot;
 } controls;
 
-typedef struct enemy {
-  vec2 pos;
-  int health;
-  sprite s;
-} enemy;
-
 typedef struct sprite {
   const char* mask;
   const char* bmp;
@@ -69,6 +63,13 @@ typedef struct sprite {
   const uint8_t width;
   const uint8_t height;
 } sprite;
+
+typedef struct enemy {
+  vec2 pos;
+  int health;
+  int width;
+  sprite s;
+} enemy;
 
 typedef struct depth_buf_info {
   int depth;
@@ -120,11 +121,6 @@ const segment walls[] PROGMEM = {
   {{40, 130}, {80, 130}},
   {{80, 130}, {80, 170}},
   {{80, 170}, {40, 170}},
-};
-
-#define NUM_ENEMIES 1
-const enemy enemies[] PROGMEM = {
-  {{100, 20}, 5, 8}
 };
 
 
@@ -272,6 +268,19 @@ static const char imp_bmp_mask[] PROGMEM = {
 
 const uint16_t imp_bmp_size = sizeof(imp_bmp);
 
+const sprite imp_sprite PROGMEM = {
+  imp_bmp_mask,
+  imp_bmp,
+  imp_bmp_size,
+  IMP_WIDTH,
+  IMP_HEIGHT
+};
+
+#define NUM_ENEMIES 1
+const enemy enemies[] PROGMEM = {
+  {{100, 20}, 5, 8, imp_sprite}
+};
+
 float pow2(float x);
 
 float dot(vec2 v, vec2 u);
@@ -307,5 +316,7 @@ float point_ray_dist2(vec2 p, segment s);
 void oled_write_bmp_P(const char* data, const uint16_t size, int width, int height, int x, int y, bool invert);
 
 bool render_enemy(int screen_x, segment ray, enemy e, bool hit_wall, float wall_dist);
+
+void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x, int y);
 
 void oled_write_texture_slice(const char* data, const char* mask, const uint16_t size, int text_width, int text_height, int slice_col, int slice_height, int x, int y_start);

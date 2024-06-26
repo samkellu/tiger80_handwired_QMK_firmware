@@ -43,6 +43,15 @@ float pow2(float x) { return x * x; }
 
 float dot(vec2 u, vec2 v) { return u.x * v.x + u.y * v.y; }
 
+double cross(vec2 u, vec2 v) { return u.x * v.y - u.y * v.x; }
+
+double get_angle(vec2 v1, vec2 v2)
+{
+	// |A·B| = |A| |B| COS(θ)
+	// |A×B| = |A| |B| SIN(θ)
+	return atan2(cross(v1, v2), dot(v1, v2));
+}
+
 float dist2(vec2 u, vec2 v) { return dot(sub(u, v), sub(u, v)); }
 
 vec2 sub(vec2 u, vec2 v) { return (vec2) {u.x - v.x, u.y - v.y}; }
@@ -158,98 +167,103 @@ void render_map(vec2 p, int pa) {
             }
         }
 
-        info.depth = wall_dist;
-
         if (hit_wall) {
             // Draws lines at the edges of walls
-            info.length = 1000 * inv_sqrt(wall_dist);
             int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
             wall2pt = 1 / inv_sqrt(wall2pt);
+
+            info.phase = wall2pt % 10 < 5;
+            info.length = 1000 * inv_sqrt(wall_dist);
+            info.depth = wall_dist;
             if (wall2pt < 2 || wall2pt > wall_len - 2) {
                 vertical_line(i, info.length);
-                continue;
+            } else {
+                check_line(i, info.length, info.phase);
             }
-            
-            info.phase = wall2pt % 10 < 5;
-            check_line(i, info.length, info.phase);
         }
 
         depth_buf[i] = info;
-        depth_buf[i+1] = info;
+        if (i + 1 < SCREEN_WIDTH - 1) depth_buf[i+1] = info;
     }
 
-    float cone_l = (FOV / 127.0f) - (FOV / 2.0f);
-    float cone_r = ((SCREEN_WIDTH - 1) * FOV / 127.0f) - (FOV / 2.0f);
+    // float middle_ray = (SCREEN_WIDTH / 2) * (FOV / 127.0f) - (FOV / 2.0f);
+    // ray.v.x = p.x + DOV * cosf((pa + middle_ray) * PI / 180);
+    // ray.v.y = p.y + DOV * sinf((pa + middle_ray) * PI / 180);
 
+    // float middle_ray_angle = atan2(ray.v.x - p.x, ray.v.y - p.y);
     for (int j = 0; j < NUM_ENEMIES; j++) {
         enemy e = enemies[j];
-        enemy_angle = atan2(e.pos.x - p.x, e.pos.y - p.y);
+        // float enemy_angle = atan2(e.pos.x - p.x, e.pos.y - p.y);
 
-        if (enemy_angle <= cone_r && enemy_angle >= cone_l) {
+        // if (abs(enemy_angle - middle_ray_angle) < FOV / 2) {
             // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
             // Redraw walls at those pixels where depth is less than enemy distance.
             float enemy_dist2 = dist2(e.pos, p);
             float enemy_dist = 1 / inv_sqrt(enemy_dist2);
-            int enemy_screen_x = SCREEN_WIDTH * (enemy_angle - cone_l) / (cone_r - cone_l);
-            float enemy_side_angle = atan(e.width, enemy_dist);
-            int enemy_l = SCREEN_WIDTH * (enemy_angle - enemy_side_angle - cone_l) / (cone_r - cone_l);
-            int enemy_r = SCREEN_WIDTH * (enemy_angle + enemy_side_angle - cone_l) / (cone_r - cone_l);
+            // int enemy_l = SCREEN_WIDTH * (enemy_angle - enemy_side_angle - cone_l) / (cone_r - cone_l);
+            // int enemy_r = SCREEN_WIDTH * (enemy_angle + enemy_side_angle - cone_l) / (cone_r - cone_l);
 
-            bool draw = false;
-            for (int k = enemy_l; k < enemy_r; k++) {
-                if (depth_buf[k] > enemy_dist2) {
-                    draw = true;
-                    break;
-                }
-            }
+            // bool draw = false;
+            // for (int k = enemy_l; k < enemy_r; k++) {
+            //     if (depth_buf[k].depth > enemy_dist2) {
+            //         // draw = true;
+            //         break;
+            //     }
+            // }
 
-            if (!draw) continue;
+            // if (!draw) continue;
             
             enemy_dist = enemy_dist > 8 ? 8 : enemy_dist;
-            int scale_height = e.s.height * 1500 * enemy_dist; // ?? really big??? Probably??
-            int scale_width = e.s.width * 1500 * enemy_dist;
-            int y_start = (1000 * enemy_dist) + WALL_OFFSET;
+            int scale_height = e.s.height * /*1500 */ enemy_dist; // ?? really big??? Probably??
+            int scale_width = e.s.width * /*1500 */ enemy_dist;
+            int y_start = (/*1000 */ enemy_dist) + WALL_OFFSET;
 
-            oled_write_bmp_P_scaled(e.s, scale_height, scale_width, enemy_l, y_start);
+            oled_set_cursor(0, 0);
+            oled_write(get_u8_str(scale_height, ' '), false);
+            oled_write(get_u8_str(scale_width, ' '), false);
+            oled_write(get_u8_str(y_start, ' '), false);
+            oled_write(get_u8_str(depth_buf[0].depth, ' '), false);
+            // oled_write_bmp_P_scaled(e.s, scale_height, scale_width, enemy_l, y_start);
 
-            for (int k = enemy_l; k < enemy_r; k++) {
-                if (depth_buf[k].depth < enemy_dist2) {
-                    check_line(k, info.length, info.phase);
-                }
-            }
+            // for (int k = enemy_l; k < enemy_r; k++) {
+            //     depth_buf_info info = depth_buf[k];
+            //     if (info.depth < enemy_dist2) {
+            //         check_line(k, info.length, info.phase);
+            //     }
+            // }
             
-        }
+        // }
 
-        // Walls are rendered every second lateral pixel, to add detail we render every pixel of entities
-        if (render_enemy(i, ray, enemies[j], hit_wall, wall_dist)) {
-            ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
-            ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
+        // // Walls are rendered every second lateral pixel, to add detail we render every pixel of entities
+        // if (render_enemy(i, ray, enemies[j], hit_wall, wall_dist)) {
+        //     ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
+        //     ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
 
-            render_enemy(i + 1, ray, enemies[j], hit_wall, wall_dist);
-        }
+        //     render_enemy(i + 1, ray, enemies[j], hit_wall, wall_dist);
+        // }
     }
 }
 
-bool render_enemy(int screen_x, segment ray, enemy e, bool hit_wall, float wall_dist) {
+// bool render_enemy(int screen_x, segment ray, enemy e, bool hit_wall, float wall_dist) {
 
-    float enemy_dist = dist2(ray.u, e.pos);
-    if (hit_wall && enemy_dist >= wall_dist) return false;
+//     float enemy_dist = dist2(ray.u, e.pos);
+//     if (hit_wall && enemy_dist >= wall_dist) return false;
 
-    // If ray is close to enemy, retrieve slice of enemy sprite based on orthogonal distance to ray 
-    float d = 1 / inv_sqrt(point_ray_dist2(e.pos, ray));
-    if (d > e.width) return false;
+//     // If ray is close to enemy, retrieve slice of enemy sprite based on orthogonal distance to ray 
+//     float d = 1 / inv_sqrt(point_ray_dist2(e.pos, ray));
+//     if (d > e.width) return false;
 
-    bool is_left = (ray.u.x - ray.v.x) * (e.pos.y - ray.v.y) - (ray.u.y - ray.v.y) * (e.pos.x - ray.v.x) > 0;
-    int slice = (IMP_WIDTH / 2) + ((is_left ? -1 : 1) * (IMP_WIDTH / 2) * (d / (float) e.width));
+//     bool is_left = (ray.u.x - ray.v.x) * (e.pos.y - ray.v.y) - (ray.u.y - ray.v.y) * (e.pos.x - ray.v.x) > 0;
+//     int slice = (IMP_WIDTH / 2) + ((is_left ? -1 : 1) * (IMP_WIDTH / 2) * (d / (float) e.width));
 
-    enemy_dist = inv_sqrt(enemy_dist * 0.4);
-    enemy_dist = enemy_dist > 8 ? 8 : enemy_dist;
-    float slice_height = 1500 * enemy_dist;
-    int y_start = (1000 * enemy_dist) + WALL_OFFSET;
+//     enemy_dist = inv_sqrt(enemy_dist * 0.4);
+//     enemy_dist = enemy_dist > 8 ? 8 : enemy_dist;
+//     float slice_height = 1500 * enemy_dist;
+//     int y_start = (1000 * enemy_dist) + WALL_OFFSET;
 
-    oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, slice, slice_height, screen_x, y_start);
-    return true;
-}
+//     oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, slice, slice_height, screen_x, y_start);
+//     return true;
+// }
 
 void draw_gun(bool moving, bool show_flash) {
 
@@ -349,7 +363,7 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
         uint8_t m = pgm_read_byte(img.mask++);
         for (int j = 0; j < 8; j++) {
             bool px = c & (1 << (7 - j));
-            bool pxm = ms & (1 << (7 - j));
+            bool pxm = m & (1 << (7 - j));
 
             while (draw_row < draw_height * row / img.height) {
                 for (int k = draw_col; k < draw_width * col / img.width; k++) {
