@@ -137,12 +137,12 @@ void render_map(vec2 p, int pa) {
     segment ray = {p, {0, 0}};
 
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
-    depth_buf_info depth_buf[SCREEN_WIDTH / 2];
-    int cursor = 0;
+    // depth_buf_info depth_buf[SCREEN_WIDTH / 2];
+    // int cursor = 0;
 
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
-        float ray_angle = (i * FOV / 127.0f) - (FOV / 2.0f);
+        float ray_angle = (i * FOV / SCREEN_WIDTH) - (FOV / 2);
         ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
         ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
 
@@ -183,47 +183,60 @@ void render_map(vec2 p, int pa) {
             }
         }
 
-        depth_buf[cursor++] = info;
+        // depth_buf[cursor++] = info;
     }
 
-    // float middle_ray = (SCREEN_WIDTH / 2) * (FOV / 127.0f) - (FOV / 2.0f);
-    // ray.v.x = p.x + DOV * cosf((pa + middle_ray) * PI / 180);
-    // ray.v.y = p.y + DOV * sinf((pa + middle_ray) * PI / 180);
+    float middle_ray = (SCREEN_WIDTH / 2) * (FOV / 127.0f) - (FOV / 2.0f);
+
+    vec2 ray_vec = {
+        p.x + DOV * cosf((pa + middle_ray) * PI / 180),
+        p.y + DOV * sinf((pa + middle_ray) * PI / 180)
+    };
 
     // float middle_ray_angle = atan2(ray.v.x - p.x, ray.v.y - p.y);
-    for (int j = 0; j < NUM_ENEMIES; j++) {
-        enemy e = enemies[j];
-        // float enemy_angle = atan2(e.pos.x - p.x, e.pos.y - p.y);
+    for (int i = 0; i < NUM_ENEMIES; i++) {
+        enemy e = enemies[i];
 
-        // if (abs(enemy_angle - middle_ray_angle) < FOV / 2) {
+        vec2 e_vec = {
+            e.pos.x - p.x,
+            e.pos.y - p.y
+        };
+
+        int determinant = e_vec.x * ray_vec.y - e_vec.y * ray_vec.x;
+        float enemy_angle = atan2(determinant, dot(e_vec, ray_vec)) * 180 / PI;
+        // oled_set_cursor(0, 0);
+        // oled_write(get_u8_str(scale_height, ' '), false);
+        // oled_write(get_u8_str(scale_width, ' '), false);
+        // oled_write(get_u8_str(y_start, ' '), false);
+        // oled_write(get_u16_str(enemy_angle, ' '), false);
+        // oled_write(get_u16_str(FOV / 2, ' '), false);
+        // oled_write(get_u16_str(FOV / 2, ' '), false);
+        if (enemy_angle < FOV / 2 && enemy_angle > -FOV / 2) {
             // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
             // Redraw walls at those pixels where depth is less than enemy distance.
             float enemy_dist2 = dist2(e.pos, p);
             float enemy_dist = 1 / inv_sqrt(enemy_dist2);
-            // int enemy_l = SCREEN_WIDTH * (enemy_angle - enemy_side_angle - cone_l) / (cone_r - cone_l);
-            // int enemy_r = SCREEN_WIDTH * (enemy_angle + enemy_side_angle - cone_l) / (cone_r - cone_l);
-
-            // bool draw = false;
-            // for (int k = enemy_l; k < enemy_r; k++) {
-            //     if (depth_buf[k].depth > enemy_dist2) {
-            //         // draw = true;
-            //         break;
-            //     }
-            // }
-
-            // if (!draw) continue;
-            
-            int scale_height = e.s.height * 50 / enemy_dist; // ?? really big??? Probably??
+            int scale_height = e.s.height * 50 / enemy_dist;
             int scale_width = e.s.width * 50 / enemy_dist;
+
+            int enemy_screen_x = SCREEN_WIDTH * (enemy_angle + FOV / 2) / FOV;
+            int enemy_sreen_l = max(0, enemy_screen_x - scale_width / 2);
+            int enemy_sreen_r = min(SCREEN_WIDTH, enemy_screen_x + scale_width / 2);
+            bool draw = false;
+            for (int j = enemy_screen_l / 2; j < enemy_screen_r / 2; j++) {
+                if (depth_buf[j].depth > enemy_dist2) {
+                    draw = true;
+                    break;
+                }
+            }
+
+            if (!draw) continue;
+            
             int y_start = (/*1000 */ enemy_dist) + WALL_OFFSET;
 
-            oled_set_cursor(0, 0);
-            oled_write(get_u8_str(scale_height, ' '), false);
-            oled_write(get_u8_str(scale_width, ' '), false);
-            oled_write(get_u8_str(y_start, ' '), false);
-            oled_write(get_u16_str(enemy_dist, ' '), false);
-            oled_write(get_u16_str(depth_buf[0].depth, ' '), false);
-            oled_write_bmp_P_scaled(e.s, scale_height, scale_width, 2, 0);
+            // oled_write(get_u16_str(enemy_dist, ' '), false);
+            // oled_write(get_u16_str(depth_buf[0].depth, ' '), false);
+            oled_write_bmp_P_scaled(e.s, scale_height, scale_width, enemy_screen_l, y_start);
 
             // for (int k = enemy_l; k < enemy_r; k++) {
             //     depth_buf_info info = depth_buf[k];
@@ -240,7 +253,7 @@ void render_map(vec2 p, int pa) {
         //     ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
 
         //     render_enemy(i + 1, ray, enemies[j], hit_wall, wall_dist);
-        // }
+        }
     }
 }
 
@@ -463,14 +476,14 @@ void doom_update(controls c) {
     }
 
     // Displays the current game time
-    oled_set_cursor(1, 7);
-    oled_write_P(PSTR("TIME:"), false);
-    oled_write(get_u16_str(timer_elapsed(game_time), ' '), false);
+    // oled_set_cursor(1, 7);
+    // oled_write_P(PSTR("TIME:"), false);
+    // oled_write(get_u16_str(timer_elapsed(game_time), ' '), false);
 
-    // Displays the players current score
-    oled_set_cursor(12, 7);
-    oled_write_P(PSTR("SCORE:"), false);
-    oled_write(get_u8_str(score, ' '), false);
+    // // Displays the players current score
+    // oled_set_cursor(12, 7);
+    // oled_write_P(PSTR("SCORE:"), false);
+    // oled_write(get_u8_str(score, ' '), false);
 
     render_map(p, pa);
     draw_gun(c.f, shot_timer > 0);
