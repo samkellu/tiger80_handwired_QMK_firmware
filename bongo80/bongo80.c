@@ -137,8 +137,9 @@ void render_map(vec2 p, int pa) {
     segment ray = {p, {0, 0}};
 
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
-    depth_buf_info depth_buf[SCREEN_WIDTH];
-    
+    depth_buf_info depth_buf[SCREEN_WIDTH / 2];
+    int cursor = 0;
+
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
         float ray_angle = (i * FOV / 127.0f) - (FOV / 2.0f);
@@ -182,8 +183,7 @@ void render_map(vec2 p, int pa) {
             }
         }
 
-        depth_buf[i] = info;
-        if (i + 1 < SCREEN_WIDTH - 1) depth_buf[i+1] = info;
+        depth_buf[cursor++] = info;
     }
 
     // float middle_ray = (SCREEN_WIDTH / 2) * (FOV / 127.0f) - (FOV / 2.0f);
@@ -213,17 +213,17 @@ void render_map(vec2 p, int pa) {
 
             // if (!draw) continue;
             
-            enemy_dist = enemy_dist > 8 ? 8 : enemy_dist;
-            int scale_height = e.s.height * /*1500 */ enemy_dist; // ?? really big??? Probably??
-            int scale_width = e.s.width * /*1500 */ enemy_dist;
+            int scale_height = e.s.height * 50 / enemy_dist; // ?? really big??? Probably??
+            int scale_width = e.s.width * 50 / enemy_dist;
             int y_start = (/*1000 */ enemy_dist) + WALL_OFFSET;
 
             oled_set_cursor(0, 0);
             oled_write(get_u8_str(scale_height, ' '), false);
             oled_write(get_u8_str(scale_width, ' '), false);
             oled_write(get_u8_str(y_start, ' '), false);
-            oled_write(get_u8_str(depth_buf[0].depth, ' '), false);
-            // oled_write_bmp_P_scaled(e.s, scale_height, scale_width, enemy_l, y_start);
+            oled_write(get_u16_str(enemy_dist, ' '), false);
+            oled_write(get_u16_str(depth_buf[0].depth, ' '), false);
+            oled_write_bmp_P_scaled(e.s, scale_height, scale_width, 2, 0);
 
             // for (int k = enemy_l; k < enemy_r; k++) {
             //     depth_buf_info info = depth_buf[k];
@@ -357,7 +357,9 @@ void oled_write_bmp_P(const char* data, const uint16_t size, int width, int heig
 // 
 void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x, int y) {
 
-    int row = 0, col = 0, draw_col = 0, draw_row = 0;
+    if (draw_height < 1 || draw_width < 1) return;
+
+    int row = 0, col = 0;
     for (int i = 0; i < img.size; i++) {
         uint8_t c = pgm_read_byte(img.bmp++);
         uint8_t m = pgm_read_byte(img.mask++);
@@ -365,24 +367,24 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
             bool px = c & (1 << (7 - j));
             bool pxm = m & (1 << (7 - j));
 
-            while (draw_row < draw_height * row / img.height) {
-                for (int k = draw_col; k < draw_width * col / img.width; k++) {
-                    if (px) oled_write_pixel(x + k, y + draw_row, true);
-                    if (pxm) oled_write_pixel(x + k, y + draw_row, false);
+            int draw_row = draw_height * row / img.height;
+            int draw_row_lim = draw_height * (row + 1) / img.height;
+            int draw_col = draw_width * col / img.width;
+            int draw_col_lim = draw_width * (col + 1) / img.width;
+
+            for (int k = draw_row; k < draw_row_lim; k++) {
+                if (y + k >= UI_HEIGHT) return;
+
+                for (int l = draw_col; l < draw_col_lim; l++) {
+                    if (px) oled_write_pixel(x + l, y + k, true);
+                    if (pxm) oled_write_pixel(x + l, y + k, false);
                 }
-
-                draw_row++;
             }
 
-            draw_row = draw_width * col / img.width;
-            if (col == img.width - 1) {
-                if (++row + y >= UI_HEIGHT) return;
-
+            if (++col == img.width) {
+                row++;
                 col = 0;
-                continue;
             }
-
-            col++;
         }
     }
 }
@@ -463,7 +465,7 @@ void doom_update(controls c) {
     // Displays the current game time
     oled_set_cursor(1, 7);
     oled_write_P(PSTR("TIME:"), false);
-    oled_write(get_u8_str((timer_elapsed(game_time) - START_TIME_MILLI) / 1000, ' '), false);
+    oled_write(get_u16_str(timer_elapsed(game_time), ' '), false);
 
     // Displays the players current score
     oled_set_cursor(12, 7);
