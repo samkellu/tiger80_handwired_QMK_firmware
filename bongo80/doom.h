@@ -25,9 +25,8 @@
 
 #define PI                    3.14159
 #define WALL_COLLISION_DIST   5
-#define ENEMY_COLLISION_DIST  10
 #define START_TIME_MILLI      4000
-#define FRAME_TIME_MILLI      80
+#define FRAME_TIME_MILLI      70
 
 #define UI_HEIGHT             54
 #define WALL_OFFSET           27
@@ -75,6 +74,7 @@ typedef struct depth_buf_info {
   int depth;
   bool phase;
   int length;
+  bool is_checked;
 } depth_buf_info;
 
 // +-----------------------------------------+
@@ -305,7 +305,7 @@ void render_map(vec2 p, int pa);
 
 vec2 raycast(segment s1, segment s2, bool* hit);
 
-void vertical_line(int x, int half_length);
+void vertical_line(int x, int half_length, bool color, int skip);
 
 void check_line(int x, int half_length, bool phase);
 
