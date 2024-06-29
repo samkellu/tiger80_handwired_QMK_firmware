@@ -26,7 +26,7 @@
 #define PI                    3.14159
 #define WALL_COLLISION_DIST   5
 #define START_TIME_MILLI      4000
-#define FRAME_TIME_MILLI      70
+#define FRAME_TIME_MILLI      20
 
 #define UI_HEIGHT             54
 #define WALL_OFFSET           27
