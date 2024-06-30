@@ -45,13 +45,6 @@ float dot(vec2 u, vec2 v) { return u.x * v.x + u.y * v.y; }
 
 double cross(vec2 u, vec2 v) { return u.x * v.y - u.y * v.x; }
 
-double get_angle(vec2 v1, vec2 v2)
-{
-	// |A·B| = |A| |B| COS(θ)
-	// |A×B| = |A| |B| SIN(θ)
-	return atan2(cross(v1, v2), dot(v1, v2));
-}
-
 float dist2(vec2 u, vec2 v) { return dot(sub(u, v), sub(u, v)); }
 
 vec2 sub(vec2 u, vec2 v) { return (vec2) {u.x - v.x, u.y - v.y}; }
@@ -193,7 +186,6 @@ void render_map(vec2 p, int pa) {
         DOV * sinf((pa + middle_ray) * PI / 180)
     };
 
-    // float middle_ray_angle = atan2(ray.v.x - p.x, ray.v.y - p.y);
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
         vec2 e_vec = {
@@ -201,16 +193,15 @@ void render_map(vec2 p, int pa) {
             e.pos.y - p.y
         };
 
-        int determinant = e_vec.x * ray_vec.y - e_vec.y * ray_vec.x;
-        float enemy_angle = atan2f(determinant, dot(e_vec, ray_vec)) * 180 / PI;
-        if (enemy_angle >= FOV / 2 || enemy_angle <= -FOV / 2) continue;
+        float enemy_angle = atan2f(cross(e_vec, ray_vec), dot(e_vec, ray_vec)) * 180 / PI;
+        if (enemy_angle >= FOV / 2 || enemy_angle < -FOV / 2) continue;
         
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
         // Redraw walls at those pixels where depth is less than enemy distance.
         float enemy_dist2 = dist2(e.pos, p);
         float enemy_dist_inv = inv_sqrt(enemy_dist2);
-        int scale_height = e.s.height * 50 * enemy_dist_inv;
-        int scale_width = e.s.width * 50 * enemy_dist_inv;
+        int scale_height = e.s[e.anim_state].height * 50 * enemy_dist_inv;
+        int scale_width = e.s[e.anim_state].width * 50 * enemy_dist_inv;
 
         int enemy_screen_x = SCREEN_WIDTH - SCREEN_WIDTH * (enemy_angle + (FOV / 2)) / FOV;
         int enemy_screen_l = enemy_screen_x - scale_width / 2;
@@ -229,7 +220,7 @@ void render_map(vec2 p, int pa) {
         if (!draw) continue;
 
         int y_start = WALL_OFFSET - scale_height / 3;
-        oled_write_bmp_P_scaled(e.s, scale_height, scale_width, enemy_screen_x - scale_width / 2, y_start);
+        oled_write_bmp_P_scaled(e.s[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, y_start);
 
         // Redraw walls where entity sprite should be behind
         for (int j = enemy_screen_l; j < enemy_screen_r; j++) {
@@ -248,27 +239,6 @@ void render_map(vec2 p, int pa) {
         }
     }
 }
-
-// bool render_enemy(int screen_x, segment ray, enemy e, bool hit_wall, float wall_dist) {
-
-//     float enemy_dist = dist2(ray.u, e.pos);
-//     if (hit_wall && enemy_dist >= wall_dist) return false;
-
-//     // If ray is close to enemy, retrieve slice of enemy sprite based on orthogonal distance to ray 
-//     float d = 1 / inv_sqrt(point_ray_dist2(e.pos, ray));
-//     if (d > e.width) return false;
-
-//     bool is_left = (ray.u.x - ray.v.x) * (e.pos.y - ray.v.y) - (ray.u.y - ray.v.y) * (e.pos.x - ray.v.x) > 0;
-//     int slice = (IMP_WIDTH / 2) + ((is_left ? -1 : 1) * (IMP_WIDTH / 2) * (d / (float) e.width));
-
-//     enemy_dist = inv_sqrt(enemy_dist * 0.4);
-//     enemy_dist = enemy_dist > 8 ? 8 : enemy_dist;
-//     float slice_height = 1500 * enemy_dist;
-//     int y_start = (1000 * enemy_dist) + WALL_OFFSET;
-
-//     oled_write_texture_slice(imp_bmp, imp_bmp_mask, imp_bmp_size, IMP_WIDTH, IMP_HEIGHT, slice, slice_height, screen_x, y_start);
-//     return true;
-// }
 
 void draw_gun(bool moving, bool show_flash) {
 
@@ -361,16 +331,18 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
         uint8_t c = pgm_read_byte(img.bmp++);
         uint8_t m = pgm_read_byte(img.mask++);
         for (int j = 0; j < 8; j++) {
-            bool px = c & (1 << (7 - j));
-            bool pxm = m & (1 << (7 - j));
-
             int draw_row = draw_height * row / img.height;
+            if (draw_row >= UI_HEIGHT) return;
+
             int draw_row_lim = draw_height * (row + 1) / img.height;
             int draw_col = draw_width * col / img.width;
             int draw_col_lim = draw_width * (col + 1) / img.width;
 
+            bool px = c & (1 << (7 - j));
+            bool pxm = m & (1 << (7 - j));
             for (int k = draw_row; k < draw_row_lim; k++) {
-                if (y + k >= UI_HEIGHT) return;
+                if (y + k < 0) continue;
+                if (y + k >= UI_HEIGHT) break;
 
                 for (int l = draw_col; l < draw_col_lim; l++) {
                     if (x + l < 0) continue;
@@ -385,34 +357,6 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
                 col = 0;
             }
         }
-    }
-}
-
-void oled_write_texture_slice(const char* data, const char* mask, const uint16_t size, int text_width, int text_height, int slice_col, int slice_height, int x, int y_start) {
-    
-    int height_written = 0;
-    int byte_offset = slice_col / 8;
-    int bit_offset = slice_col - byte_offset * 8;  
-
-    for (int row = 0; row < text_height; row++) {
-        data += byte_offset;
-        mask += byte_offset;
-
-        uint8_t c = pgm_read_byte(data);
-        uint8_t m = pgm_read_byte(mask);
-
-        bool px = c & (1 << (7 - bit_offset));
-        bool pxm = m & (1 << (7 - bit_offset));
-        
-        while (height_written < slice_height * row / text_height) {
-            if (y_start - slice_height + height_written >= UI_HEIGHT) return;
-            if (px) oled_write_pixel(x, y_start + height_written - slice_height, true);
-            if (pxm) oled_write_pixel(x, y_start + height_written - slice_height, false);
-            height_written++;
-        }
-
-        byte_offset = (text_width + bit_offset) / 8;
-        bit_offset = text_width + bit_offset - byte_offset * 8;
     }
 }
 
@@ -456,21 +400,21 @@ void doom_update(controls c) {
         if (!collision_detection(pny)) p.y = pny.y;
     }
 
-
     for (int i = 0; i < SCREEN_WIDTH; i++) {
         oled_write_pixel(i, UI_HEIGHT, 1);
     }
 
     // Displays the current game time
-    // oled_set_cursor(1, 7);
-    // oled_write_P(PSTR("TIME:"), false);
-    // oled_write(get_u16_str(timer_elapsed(game_time), ' '), false);
+    oled_set_cursor(1, 7);
+    oled_write_P(PSTR("TIME:"), false);
+    oled_write(get_u16_str((float) timer_elapsed(game_time) / 1000, ' '), false);
 
-    // // Displays the players current score
-    // oled_set_cursor(12, 7);
-    // oled_write_P(PSTR("SCORE:"), false);
-    // oled_write(get_u8_str(score, ' '), false);
+    // Displays the players current score
+    oled_set_cursor(12, 7);
+    oled_write_P(PSTR("SCORE:"), false);
+    oled_write(get_u8_str(score, ' '), false);
 
+    enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
     render_map(p, pa);
     draw_gun(c.f, shot_timer > 0);
 }
