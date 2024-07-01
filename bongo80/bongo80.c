@@ -253,7 +253,6 @@ void draw_gun(bool moving, bool show_flash) {
     } 
 
     oled_write_bmp_P(gun_sprite, gun_x - GUN_WIDTH/2, gun_y - GUN_HEIGHT);
-
     if (show_flash) {
         oled_write_bmp_P(muzzle_flash_sprite, gun_x - FLASH_WIDTH/2 + 2, gun_y - 3*FLASH_HEIGHT/4 - GUN_HEIGHT);
     }
@@ -282,7 +281,6 @@ void check_line(int x, int half_length, bool phase) {
             if (i == lower || (i >= lower + half_length && i <= lower + 3 * half_length / 2)) {
                 i += half_length / 2;
             }
-
         } else {
             if ((i >= lower + half_length / 2 && i <= lower + half_length) || (i >= lower + 3 * half_length / 2 && i <= upper)) {
                 i += half_length / 2;
@@ -304,13 +302,12 @@ void oled_write_bmp_P(sprite img, int x, int y) {
     for (int i = 0; i < img.size; i++) {
         uint8_t c = pgm_read_byte(img.bmp++);
         uint8_t m = img.bmp == NULL ? 0x00 : pgm_read_byte(img.mask++);
-        
+
         for (int j = 0; j < 8; j++) {
             bool px = c & (1 << (7 - j));
             bool pxm = m & (1 << (7 - j));
             if (px) oled_write_pixel(x + col, y + row, true);
             if (pxm) oled_write_pixel(x + col, y + row, false);
-
             if (++col == img.width) {
                 row++;
                 col = 0;
@@ -328,6 +325,7 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
     for (int i = 0; i < img.size; i++) {
         uint8_t c = pgm_read_byte(img.bmp++);
         uint8_t m = pgm_read_byte(img.mask++);
+
         for (int j = 0; j < 8; j++) {
             int draw_row = draw_height * row / img.height;
             if (draw_row >= UI_HEIGHT) return;
@@ -335,9 +333,9 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
             int draw_row_lim = draw_height * (row + 1) / img.height;
             int draw_col = draw_width * col / img.width;
             int draw_col_lim = draw_width * (col + 1) / img.width;
-
             bool px = c & (1 << (7 - j));
             bool pxm = m & (1 << (7 - j));
+
             for (int k = draw_row; k < draw_row_lim; k++) {
                 if (y + k < 0) continue;
                 if (y + k >= UI_HEIGHT) break;
@@ -355,6 +353,13 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
                 col = 0;
             }
         }
+    }
+}
+
+void enemy_update() {
+
+    for (int i = 0; i < NUM_ENEMIES; i++) {
+        enemy e = enemies[i];
     }
 }
 
@@ -380,8 +385,8 @@ void doom_update(controls c) {
     if (timer_elapsed(game_time) < START_TIME_MILLI) return;
 
     oled_clear();
-    if (c.shoot && shot_timer == 0) shot_timer = 5;
     if (shot_timer > 0) shot_timer--;
+    if (c.shoot && shot_timer == 0) shot_timer = 5;
 
     if (c.l) {
         pa -= pa - ROTATION_SPEED < 0 ? ROTATION_SPEED + 360 : ROTATION_SPEED;
@@ -391,9 +396,10 @@ void doom_update(controls c) {
         pa += pa + ROTATION_SPEED >= 360 ? ROTATION_SPEED - 360 : ROTATION_SPEED;
     }
 
-    if (c.f) {
-        vec2 pnx = {p.x + 2 * cos(pa * (PI / 180)), p.y};
-        vec2 pny = {p.x, p.y + 2 * sin(pa * (PI / 180))};
+    if (!c.f != !c.u) {
+        int walk_dist = c.f ? WALK_SPEED : -WALK_SPEEd;
+        vec2 pnx = {p.x + walk_dist * cos(pa * (PI / 180)), p.y};
+        vec2 pny = {p.x, p.y + walk_dist * sin(pa * (PI / 180))};
         if (!collision_detection(pnx)) p.x = pnx.x;
         if (!collision_detection(pny)) p.y = pny.y;
     }
@@ -459,7 +465,7 @@ static uint8_t curr_wpm = 0;
 led_t led_usb_state;
 enum oled_state screen_mode = OFF;
 
-controls doom_inputs = {0, 0, 0, 0};
+controls doom_inputs = {0, 0, 0, 0, 0};
 
 static void render_wpm(void) {
 
@@ -519,7 +525,11 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     if (screen_mode == DOOM) {
         switch (keycode) {
             case KC_UP:
-                doom_inputs.f = record->event.pressed;
+                doom_inputs.u = record->event.pressed;
+                return false;
+            
+            case KC_DOWN:
+                doom_inputs.d = record->event.pressed;
                 return false;
 
             case KC_LEFT:

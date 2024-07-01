@@ -24,19 +24,19 @@
 #define SCREEN_ADDRESS        0x3C
 
 #define PI                    3.14159
-#define WALL_COLLISION_DIST   5
 #define START_TIME_MILLI      4000
 #define FRAME_TIME_MILLI      20
 
+#define WALL_COLLISION_DIST   5
+#define ROTATION_SPEED        5
+#define WALK_SPEED            2
+#define DOV                   100.0f
+#define FOV                   80.0f
+#define MAX_VIEW_DIST         10000.0f
 #define UI_HEIGHT             54
 #define WALL_OFFSET           27
 #define GUN_X                 SCREEN_WIDTH / 2
 #define GUN_Y                 UI_HEIGHT
-
-#define ROTATION_SPEED        5
-#define DOV                   100.0f
-#define FOV                   80.0f
-#define MAX_VIEW_DIST         10000.0f
 
 // Represents a place in 2D space
 typedef struct vec2 {
@@ -52,7 +52,8 @@ typedef struct segment {
 typedef struct controls {
   bool l;
   bool r;
-  bool f;
+  bool u;
+  bool d;
   bool shoot;
 } controls;
 
@@ -68,6 +69,7 @@ typedef struct enemy {
   vec2 pos;
   int health;
   int width;
+  float direction;
   int anim_state;
   const sprite* s;
   int num_sprites;
@@ -331,7 +333,7 @@ const sprite imp_sheet[] = {imp_sprite_1, imp_sprite_2};
 
 #define NUM_ENEMIES 1
 enemy enemies[] = {
-  {{100, 20}, 5, 8, 0, imp_sheet, sizeof(imp_sheet)}
+  {{100, 20}, 5, 8, 0, 0, imp_sheet, sizeof(imp_sheet)}
 };
 
 float pow2(float x);
@@ -369,5 +371,3 @@ float point_ray_dist2(vec2 p, segment s);
 void oled_write_bmp_P(const sprite img, int x, int y);
 
 void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x, int y);
-
-void oled_write_texture_slice(const char* data, const char* mask, const uint16_t size, int text_width, int text_height, int slice_col, int slice_height, int x, int y_start);
