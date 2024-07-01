@@ -135,10 +135,10 @@ void render_map(vec2 p, int pa) {
         ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
         ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
 
-        float wall_dist = MAX_VIEW_DIST;
-        segment closest_wall;
-        depth_buf_info info = {0, 0, 0, 0};
         int wall2pt;
+        bool hit_wall = false;
+        segment closest_wall;
+        depth_buf_info info = {MAX_VIEW_DIST, 0, 0, 0};
 
         // Checks if the ray from the camera intersects any walls
         for (int j = 0; j < NUM_WALLS; j++) {
@@ -148,24 +148,22 @@ void render_map(vec2 p, int pa) {
 
             // Checks if the intersected wall is the closest to the camera
             float ptDist2 = dist2(pt, p);
-            if (ptDist2 < wall_dist) {
-                wall_dist = ptDist2;
+            if (ptDist2 < info.depth) {
+                info.depth = ptDist2;
                 closest_wall = walls[j];
+                hit_wall = true;
                 wall2pt = dist2(pt, closest_wall.u);
             }
         }
 
-        info.depth = wall_dist;
-
         // If ray hit a wall
-        if (wall_dist < MAX_VIEW_DIST) {
+        if (hit_wall) {
             // Draws lines at the edges of walls
             int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
             wall2pt = 1 / inv_sqrt(wall2pt);
 
             info.phase = wall2pt % 10 < 5;
-            info.length = 1000 * inv_sqrt(wall_dist);
-            info.depth = wall_dist;
+            info.length = 1000 * inv_sqrt(info.depth);
             if (wall2pt < 2 || wall2pt > wall_len - 2) {
                 vertical_line(i, info.length, 1, 2);
                 
@@ -301,7 +299,7 @@ void oled_write_bmp_P(sprite img, int x, int y) {
     int row = 0, col = 0;
     for (int i = 0; i < img.size; i++) {
         uint8_t c = pgm_read_byte(img.bmp++);
-        uint8_t m = img.bmp == NULL ? 0x00 : pgm_read_byte(img.mask++);
+        uint8_t m = img.mask == NULL ? 0x00 : pgm_read_byte(img.mask++);
 
         for (int j = 0; j < 8; j++) {
             bool px = c & (1 << (7 - j));
@@ -356,12 +354,12 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
     }
 }
 
-void enemy_update() {
+// void enemy_update() {
 
-    for (int i = 0; i < NUM_ENEMIES; i++) {
-        enemy e = enemies[i];
-    }
-}
+//     for (int i = 0; i < NUM_ENEMIES; i++) {
+//         enemy e = enemies[i];
+//     }
+// }
 
 
 // =================== GAME LOGIC =================== //
@@ -370,7 +368,7 @@ void enemy_update() {
 void doom_setup(void) {
 
     // Runs intro sequence
-    oled_write_bmp_P(doom_logo, doom_logo_size, LOGO_WIDTH, LOGO_HEIGHT, 0, 0, false);
+    oled_write_bmp_P(doom_logo_sprite, 0, 0);
     game_time = timer_read();
 
     // Initializes player state
@@ -389,15 +387,15 @@ void doom_update(controls c) {
     if (c.shoot && shot_timer == 0) shot_timer = 5;
 
     if (c.l) {
-        pa -= pa - ROTATION_SPEED < 0 ? ROTATION_SPEED + 360 : ROTATION_SPEED;
+        pa -= ROTATION_SPEED < 0 ? ROTATION_SPEED + 360 : ROTATION_SPEED;
     }
 
     if (c.r) {
-        pa += pa + ROTATION_SPEED >= 360 ? ROTATION_SPEED - 360 : ROTATION_SPEED;
+        pa += ROTATION_SPEED >= 360 ? ROTATION_SPEED - 360 : ROTATION_SPEED;
     }
 
-    if (!c.f != !c.u) {
-        int walk_dist = c.f ? WALK_SPEED : -WALK_SPEEd;
+    if (!c.d != !c.u) {
+        int walk_dist = c.u ? WALK_SPEED : -WALK_SPEED;
         vec2 pnx = {p.x + walk_dist * cos(pa * (PI / 180)), p.y};
         vec2 pny = {p.x, p.y + walk_dist * sin(pa * (PI / 180))};
         if (!collision_detection(pnx)) p.x = pnx.x;
@@ -420,7 +418,7 @@ void doom_update(controls c) {
 
     enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
     render_map(p, pa);
-    draw_gun(c.f, shot_timer > 0);
+    draw_gun(c.u, shot_timer > 0);
 }
 
 
