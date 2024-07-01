@@ -39,8 +39,6 @@ int gun_y = GUN_Y + 10;
 
 // =================== MATH =================== //
 
-float pow2(float x) { return x * x; }
-
 float dot(vec2 u, vec2 v) { return u.x * v.x + u.y * v.y; }
 
 float dist2(vec2 u, vec2 v) { return dot(sub(u, v), sub(u, v)); }
@@ -125,10 +123,9 @@ bool collision_detection(vec2 p) {
 // 2.5D raycast renderer for the map and entities around the player
 void render_map(vec2 p, int pa) {
 
-    segment ray = {p, {0, 0}};
-
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
     depth_buf_info depth_buf[SCREEN_WIDTH];
+    segment ray = {p, {0, 0}};
     
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
@@ -136,8 +133,7 @@ void render_map(vec2 p, int pa) {
         ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
         ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
 
-        float wall_dist = 100000.0f;
-        bool hit_wall = false;
+        float wall_dist = MAX_VIEW_DIST;
         segment closest_wall;
         depth_buf_info info = {0, 0, 0};
         int wall2pt;
@@ -152,7 +148,6 @@ void render_map(vec2 p, int pa) {
             float ptDist2 = dist2(pt, p);
             if (ptDist2 < wall_dist) {
                 wall_dist = ptDist2;
-                hit_wall = true;
                 closest_wall = walls[j];
                 wall2pt = dist2(pt, closest_wall.u);
             }
@@ -160,18 +155,20 @@ void render_map(vec2 p, int pa) {
 
         info.depth = wall_dist;
 
-        if (hit_wall) {
+        // If ray hit a wall
+        if (wall_dist < MAX_VIEW_DIST) {
             // Draws lines at the edges of walls
             info.length = 1000 * inv_sqrt(wall_dist);
             int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
             wall2pt = 1 / inv_sqrt(wall2pt);
             if (wall2pt < 2 || wall2pt > wall_len - 2) {
                 vertical_line(i, info.length);
-                continue;
+            
+            } else {
+                info.phase = wall2pt % 10 < 5;
+                check_line(i, info.length, info.phase);
             }
             
-            info.phase = wall2pt % 10 < 5;
-            check_line(i, info.length, info.phase);
         }
 
         depth_buf[i] = info;
@@ -218,14 +215,6 @@ void render_map(vec2 p, int pa) {
                 }
             }
             
-        }
-
-        // Walls are rendered every second lateral pixel, to add detail we render every pixel of entities
-        if (render_enemy(i, ray, enemies[j], hit_wall, wall_dist)) {
-            ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
-            ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
-
-            render_enemy(i + 1, ray, enemies[j], hit_wall, wall_dist);
         }
     }
 }

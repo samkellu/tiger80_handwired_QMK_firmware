@@ -37,6 +37,7 @@
 #define ROTATION_SPEED        5
 #define DOV                   100.0f
 #define FOV                   80.0f
+#define MAX_VIEW_DIST         10000.0f
 
 // Represents a place in 2D space
 typedef struct vec2 {
