@@ -196,17 +196,14 @@ void render_map(vec2 p, int pa) {
         if (enemy_angle >= FOV / 2 || enemy_angle < -FOV / 2) continue;
         
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
-        // Redraw walls at those pixels where depth is less than enemy distance.
         float enemy_dist2 = dist2(e.pos, p);
         float enemy_dist_inv = inv_sqrt(enemy_dist2);
         int scale_height = e.s[e.anim_state].height * 50 * enemy_dist_inv;
         int scale_width = e.s[e.anim_state].width * 50 * enemy_dist_inv;
 
         int enemy_screen_x = SCREEN_WIDTH - SCREEN_WIDTH * (enemy_angle + (FOV / 2)) / FOV;
-        int enemy_screen_l = enemy_screen_x - scale_width / 2;
-        int enemy_screen_r = enemy_screen_x + scale_width / 2;
-        if (enemy_screen_l < 0) enemy_screen_l = 0;
-        if (enemy_screen_r >= SCREEN_WIDTH) enemy_screen_r = SCREEN_WIDTH - 1;
+        int enemy_screen_l = MAX(MIN(enemy_screen_x - scale_width / 2, SCREEN_WIDTH - 1), 0);
+        int enemy_screen_r = MAX(MIN(enemy_screen_x + scale_width / 2, SCREEN_WIDTH - 1), 0);
 
         bool draw = false;
         for (int j = enemy_screen_l; j < enemy_screen_r; j++) {
@@ -218,21 +215,21 @@ void render_map(vec2 p, int pa) {
 
         if (!draw) continue;
 
-        int y_start = WALL_OFFSET - scale_height / 3;
-        oled_write_bmp_P_scaled(e.s[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, y_start);
+        int enemy_screen_y = WALL_OFFSET - scale_height / 3;
+        oled_write_bmp_P_scaled(e.s[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
 
         // Redraw walls where entity sprite should be behind
         for (int j = enemy_screen_l; j < enemy_screen_r; j++) {
             depth_buf_info info = depth_buf[j];
-            if (info.depth < enemy_dist2) {
-                vertical_line(j, info.length, 0, 1);
-                if (j % 2 == 0) {
-                    if (info.is_checked) {
-                        check_line(j, info.length, info.phase);
-                    
-                    } else {
-                        vertical_line(j, info.length, 1, 2);
-                    }
+            if (info.depth > enemy_dist2) continue;
+
+            vertical_line(j, info.length, 0, 1);
+            if (j % 2 == 0) {
+                if (info.is_checked) {
+                    check_line(j, info.length, info.phase);
+                
+                } else {
+                    vertical_line(j, info.length, 1, 2);
                 }
             }
         }
@@ -255,11 +252,10 @@ void draw_gun(bool moving, bool show_flash) {
         }
     } 
 
-    oled_write_bmp_P(gun_bmp_mask, gun_size, GUN_WIDTH, GUN_HEIGHT, gun_x - GUN_WIDTH/2, gun_y - GUN_HEIGHT, true);
-    oled_write_bmp_P(gun_bmp, gun_size, GUN_WIDTH, GUN_HEIGHT, gun_x - GUN_WIDTH/2, gun_y - GUN_HEIGHT, false);
+    oled_write_bmp_P(gun_sprite, gun_x - GUN_WIDTH/2, gun_y - GUN_HEIGHT);
 
     if (show_flash) {
-        oled_write_bmp_P(muzzle_flash_bmp, flash_size, FLASH_WIDTH, FLASH_HEIGHT, gun_x - FLASH_WIDTH/2 + 2, gun_y - 3*FLASH_HEIGHT/4 - GUN_HEIGHT, false);
+        oled_write_bmp_P(muzzle_flash_sprite, gun_x - FLASH_WIDTH/2 + 2, gun_y - 3*FLASH_HEIGHT/4 - GUN_HEIGHT);
     }
 }
 
@@ -302,21 +298,24 @@ void check_line(int x, int half_length, bool phase) {
     }
 }
 
-void oled_write_bmp_P(const char* data, const uint16_t size, int width, int height, int x, int y, bool invert) {
+void oled_write_bmp_P(sprite img, int x, int y) {
 
     int row = 0, col = 0;
-    for (int i = 0; i < size; i++) {
-        uint8_t c = pgm_read_byte(data++);
+    for (int i = 0; i < img.size; i++) {
+        uint8_t c = pgm_read_byte(img.bmp++);
+        uint8_t m = img.bmp == NULL ? 0x00 : pgm_read_byte(img.mask++);
+        
         for (int j = 0; j < 8; j++) {
             bool px = c & (1 << (7 - j));
-            if (px) oled_write_pixel(x + col, y + row, !invert);
+            bool pxm = m & (1 << (7 - j));
+            if (px) oled_write_pixel(x + col, y + row, true);
+            if (pxm) oled_write_pixel(x + col, y + row, false);
 
-            if (col == width - 1) {
-                col = 0;
+            if (++col == img.width) {
                 row++;
+                col = 0;
                 if (row + y >= UI_HEIGHT) return;
-            
-            } else col++;
+            }
         }
     }
 }

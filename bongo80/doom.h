@@ -224,7 +224,13 @@ static const char gun_bmp_mask[] PROGMEM = {
   0x7f, 0xff, 0xff, 0xf8, 0x7f, 0xff, 0xff, 0xf8, 0x7f, 0xff, 0xff, 0xf8, 0xff, 0xff, 0xff, 0xf0
 };
 
-const uint16_t gun_size = sizeof(gun_bmp);
+const sprite gun_sprite = {
+  gun_bmp_mask,
+  gun_bmp,
+  sizeof(gun_bmp),
+  GUN_WIDTH,
+  GUN_HEIGHT
+};
 
 // Muzzle flash sprite
 #define FLASH_WIDTH 16
@@ -234,7 +240,13 @@ static const char PROGMEM muzzle_flash_bmp [] = {
   0x3F, 0xFC, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0xFC, 0x2F, 0xFC
 };
 
-const uint16_t flash_size = sizeof(muzzle_flash_bmp);
+const sprite muzzle_flash_sprite = {
+  NULL,
+  muzzle_flash_bmp,
+  sizeof(muzzle_flash_bmp),
+  FLASH_WIDTH,
+  FLASH_HEIGHT
+};
 
 // Imp sprite and mask
 #define IMP_WIDTH   32
@@ -299,12 +311,10 @@ static const char imp_bmp_mask_2[] PROGMEM = {
   0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0xC0, 0x00
 };
 
-const uint16_t imp_bmp_size = sizeof(imp_bmp_1);
-
 const sprite imp_sprite_1 = {
   imp_bmp_mask_1,
   imp_bmp_1,
-  imp_bmp_size,
+  sizeof(imp_bmp_1),
   IMP_WIDTH,
   IMP_HEIGHT
 };
@@ -312,7 +322,7 @@ const sprite imp_sprite_1 = {
 const sprite imp_sprite_2 = {
   imp_bmp_mask_2,
   imp_bmp_2,
-  imp_bmp_size,
+  sizeof(imp_bmp_2),
   IMP_WIDTH,
   IMP_HEIGHT
 };
@@ -356,9 +366,7 @@ bool collision_detection(vec2 p);
 
 float point_ray_dist2(vec2 p, segment s);
 
-void oled_write_bmp_P(const char* data, const uint16_t size, int width, int height, int x, int y, bool invert);
-
-bool render_enemy(int screen_x, segment ray, enemy e, bool hit_wall, float wall_dist);
+void oled_write_bmp_P(const sprite img, int x, int y);
 
 void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x, int y);
 
