@@ -28,6 +28,8 @@
 #define FRAME_TIME_MILLI      20
 
 #define WALL_COLLISION_DIST   5
+#define ENEMY_VISION_RANGE    100
+#define ENEMY_WALK_SPEED      0.5f
 #define ROTATION_SPEED        5
 #define WALK_SPEED            2
 #define DOV                   100.0f
@@ -370,7 +372,9 @@ void vertical_line(int x, int half_length, bool color, int skip);
 
 void check_line(int x, int half_length, bool phase);
 
-bool collision_detection(vec2 p);
+void enemy_update(void);
+
+bool collision_detection(vec2 p, bool is_enemy);
 
 float point_ray_dist2(vec2 p, segment s);
 

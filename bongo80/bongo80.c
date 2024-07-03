@@ -99,19 +99,21 @@ float inv_sqrt(float num) {
     return y * (1.5f - ( x2 * y * y ));
 }
 
-bool collision_detection(vec2 p) {
+bool collision_detection(vec2 v, bool is_enemy) {
 
     int collision_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
     for (int i = 0; i < NUM_WALLS; i++) {
         segment w = walls[i];
-        float d2 = point_ray_dist2(p, w);
+        float d2 = point_ray_dist2(v, w);
         if (d2 < collision_dist2) return true;
     }
 
+    if (is_enemy) return false;
+    
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
         collision_dist2 = e.width * e.width;
-        float d2 = dist2(p, e.pos);
+        float d2 = dist2(v, e.pos);
         if (d2 < collision_dist2) return true;
     }
 
@@ -354,12 +356,25 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
     }
 }
 
-// void enemy_update() {
+void enemy_update() {
 
-//     for (int i = 0; i < NUM_ENEMIES; i++) {
-//         enemy e = enemies[i];
-//     }
-// }
+    int enemy_vision_range2 = ENEMY_VISION_RANGE * ENEMY_VISION_RANGE;
+    for (int i = 0; i < NUM_ENEMIES; i++) {
+        enemy e = enemies[i];
+        float player_dist2 = dist2(e.pos, p);
+        if (player_dist2 > enemy_vision_range2 || player_dist2 <= 300) continue;
+
+        if (e.pos.y != p.y) {
+            vec2 eny = {e.pos.x, e.pos.y + ENEMY_WALK_SPEED * (p.y - e.pos.y > 0 ? 1 : -1)};
+            if (!collision_detection(eny, true)) enemies[i].pos.y = eny.y;
+        }
+
+        if (e.pos.x != p.x) {
+            vec2 enx = {e.pos.x + ENEMY_WALK_SPEED * (p.x - e.pos.x > 0 ? 1 : -1), e.pos.y};
+            if (!collision_detection(enx, true)) enemies[i].pos.x = enx.x;
+        }
+    }
+}
 
 
 // =================== GAME LOGIC =================== //
@@ -398,8 +413,8 @@ void doom_update(controls c) {
         int walk_dist = c.u ? WALK_SPEED : -WALK_SPEED;
         vec2 pnx = {p.x + walk_dist * cos(pa * (PI / 180)), p.y};
         vec2 pny = {p.x, p.y + walk_dist * sin(pa * (PI / 180))};
-        if (!collision_detection(pnx)) p.x = pnx.x;
-        if (!collision_detection(pny)) p.y = pny.y;
+        if (!collision_detection(pnx, false)) p.x = pnx.x;
+        if (!collision_detection(pny, false)) p.y = pny.y;
     }
 
     for (int i = 0; i < SCREEN_WIDTH; i++) {
@@ -417,6 +432,7 @@ void doom_update(controls c) {
     oled_write(get_u8_str(score, ' '), false);
 
     enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
+    enemy_update();
     render_map(p, pa);
     draw_gun(c.u, shot_timer > 0);
 }
