@@ -29,7 +29,7 @@
 
 #define WALL_COLLISION_DIST   5
 #define ENEMY_VISION_RANGE    100
-#define ENEMY_WALK_SPEED      0.5f
+#define ENEMY_WALK_SPEED      1
 #define ROTATION_SPEED        5
 #define WALK_SPEED            2
 #define DOV                   100.0f

@@ -109,7 +109,7 @@ bool collision_detection(vec2 v, bool is_enemy) {
     }
 
     if (is_enemy) return false;
-    
+
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
         collision_dist2 = e.width * e.width;
@@ -364,12 +364,12 @@ void enemy_update() {
         float player_dist2 = dist2(e.pos, p);
         if (player_dist2 > enemy_vision_range2 || player_dist2 <= 300) continue;
 
-        if (e.pos.y != p.y) {
+        if (abs(e.pos.y - p.y) > 1) {
             vec2 eny = {e.pos.x, e.pos.y + ENEMY_WALK_SPEED * (p.y - e.pos.y > 0 ? 1 : -1)};
             if (!collision_detection(eny, true)) enemies[i].pos.y = eny.y;
         }
 
-        if (e.pos.x != p.x) {
+        if (abs(e.pos.x - p.x) > 1) {
             vec2 enx = {e.pos.x + ENEMY_WALK_SPEED * (p.x - e.pos.x > 0 ? 1 : -1), e.pos.y};
             if (!collision_detection(enx, true)) enemies[i].pos.x = enx.x;
         }
@@ -432,7 +432,9 @@ void doom_update(controls c) {
     oled_write(get_u8_str(score, ' '), false);
 
     enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
-    enemy_update();
+    if (timer_elapsed(game_time) % 200 < 100)
+        enemy_update();
+
     render_map(p, pa);
     draw_gun(c.u, shot_timer > 0);
 }
