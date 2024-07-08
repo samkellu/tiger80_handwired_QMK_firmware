@@ -125,7 +125,7 @@ bool collision_detection(vec2 v, bool is_enemy) {
 
 
 // 2.5D raycast renderer for the map and entities around the player
-void render_map(vec2 p, int pa) {
+void render_map(vec2 p, int pa, bool is_shooting) {
 
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
     depth_buf_info depth_buf[SCREEN_WIDTH];
@@ -194,7 +194,7 @@ void render_map(vec2 p, int pa) {
 
         float enemy_angle = atan2f(cross(e_vec, ray_vec), dot(e_vec, ray_vec)) * 180 / PI;
         if (enemy_angle >= FOV / 2 || enemy_angle < -FOV / 2) continue;
-        
+
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
         float enemy_dist2 = dist2(e.pos, p);
         float enemy_dist_inv = inv_sqrt(enemy_dist2);
@@ -216,7 +216,19 @@ void render_map(vec2 p, int pa) {
         if (!draw) continue;
 
         int enemy_screen_y = WALL_OFFSET - scale_height / 3;
-        oled_write_bmp_P_scaled(e.s[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
+        if (is_shooting && enemy_angle >= -FOV / 8 && enemy_angle < FOV / 8) {
+            oled_write_bmp_P_scaled(e.s_hurt[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
+
+            if (--enemies[i].health < 0) {
+                enemies[i].pos.x = 170;
+                enemies[i].pos.y = 15;
+                enemies[i].health = 10;
+                score++;
+            }
+        
+        } else {
+            oled_write_bmp_P_scaled(e.s[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
+        }
 
         // Redraw walls where entity sprite should be behind
         for (int j = enemy_screen_l; j < enemy_screen_r; j++) {
@@ -435,7 +447,7 @@ void doom_update(controls c) {
     if (timer_elapsed(game_time) % 200 < 100)
         enemy_update();
 
-    render_map(p, pa);
+    render_map(p, pa, shot_timer > 0 && c.shoot);
     draw_gun(c.u, shot_timer > 0);
 }
 

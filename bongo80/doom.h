@@ -75,6 +75,8 @@ typedef struct enemy {
   int anim_state;
   const sprite* s;
   int num_sprites;
+  const sprite* s_hurt;
+  int num_hurt_sprites;
 } enemy;
 
 typedef struct depth_buf_info {
@@ -339,9 +341,27 @@ const sprite imp_sprite_2 = {
 
 const sprite imp_sheet[] = {imp_sprite_1, imp_sprite_2};
 
+const sprite imp_sprite_hurt_1 = {
+  imp_bmp_1,
+  imp_bmp_mask_1,
+  sizeof(imp_bmp_1),
+  IMP_WIDTH,
+  IMP_HEIGHT
+};
+
+const sprite imp_sprite_hurt_2 = {
+  imp_bmp_2,
+  imp_bmp_mask_2,
+  sizeof(imp_bmp_2),
+  IMP_WIDTH,
+  IMP_HEIGHT
+};
+
+const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
+
 #define NUM_ENEMIES 1
 enemy enemies[] = {
-  {{100, 20}, 5, 8, 0, 0, imp_sheet, sizeof(imp_sheet)}
+  {{100, 20}, 10, 8, 0, 0, imp_sheet, sizeof(imp_sheet), imp_hurt_sheet, sizeof(imp_hurt_sheet)}
 };
 
 float pow2(float x);
@@ -364,7 +384,7 @@ void draw_gun(bool moving, bool show_flash);
 
 void doom_update(controls c);
 
-void render_map(vec2 p, int pa);
+void render_map(vec2 p, int pa, bool is_shooting);
 
 vec2 raycast(segment s1, segment s2, bool* hit);
 
