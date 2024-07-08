@@ -359,9 +359,25 @@ const sprite imp_sprite_hurt_2 = {
 
 const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
-#define NUM_ENEMIES 1
+
+#define NUM_ENEMY_LOCATIONS 10
+const vec2 enemy_spawn_locations[] = {
+  {30, 30},
+  {100, 80},
+  {20, 180},
+  {180, 60},
+  {120, 190},
+  {180, 20},
+  {60, 180},
+  {20, 110},
+  {20, 180},
+  {120, 90}
+};
+
+#define NUM_ENEMIES 2
 enemy enemies[] = {
-  {{100, 20}, 10, 8, 0, 0, imp_sheet, sizeof(imp_sheet), imp_hurt_sheet, sizeof(imp_hurt_sheet)}
+  {enemy_spawn_locations[9], 10, 8, 0, 0, imp_sheet, sizeof(imp_sheet), imp_hurt_sheet, sizeof(imp_hurt_sheet)},
+  {enemy_spawn_locations[2], 10, 8, 0, 0, imp_sheet, sizeof(imp_sheet), imp_hurt_sheet, sizeof(imp_hurt_sheet)}
 };
 
 float pow2(float x);
@@ -393,6 +409,8 @@ void vertical_line(int x, int half_length, bool color, int skip);
 void check_line(int x, int half_length, bool phase);
 
 void enemy_update(void);
+
+void reload_enemy(enemy* e);
 
 bool collision_detection(vec2 p, bool is_enemy);
 

@@ -218,11 +218,8 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         int enemy_screen_y = WALL_OFFSET - scale_height / 3;
         if (is_shooting && enemy_angle >= -FOV / 8 && enemy_angle < FOV / 8) {
             oled_write_bmp_P_scaled(e.s_hurt[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
-
             if (--enemies[i].health < 0) {
-                enemies[i].pos.x = 170;
-                enemies[i].pos.y = 15;
-                enemies[i].health = 10;
+                reload_enemy(&enemies[i]);
                 score++;
             }
         
@@ -368,6 +365,17 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
     }
 }
 
+// =================== ENEMY LOGIC ===================
+
+void reload_enemy(enemy* e) {
+
+    e->health = 10;
+    while (1) {
+        e->pos = enemy_spawn_locations[timer_elapsed(game_time) % NUM_ENEMY_LOCATIONS];
+        if (dist2(e->pos, p) > e->width * e->width) return;
+    }
+}
+
 void enemy_update() {
 
     int enemy_vision_range2 = ENEMY_VISION_RANGE * ENEMY_VISION_RANGE;
@@ -444,6 +452,7 @@ void doom_update(controls c) {
     oled_write(get_u8_str(score, ' '), false);
 
     enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
+    enemies[1].anim_state = enemies[0].anim_state;
     if (timer_elapsed(game_time) % 200 < 100)
         enemy_update();
 
