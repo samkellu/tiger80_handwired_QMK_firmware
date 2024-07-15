@@ -99,19 +99,21 @@ float inv_sqrt(float num) {
     return y * (1.5f - ( x2 * y * y ));
 }
 
-bool collision_detection(vec2 p) {
+bool collision_detection(vec2 v, bool is_enemy) {
 
     int collision_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
     for (int i = 0; i < NUM_WALLS; i++) {
         segment w = walls[i];
-        float d2 = point_ray_dist2(p, w);
+        float d2 = point_ray_dist2(v, w);
         if (d2 < collision_dist2) return true;
     }
+
+    if (is_enemy) return false;
 
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
         collision_dist2 = e.width * e.width;
-        float d2 = dist2(p, e.pos);
+        float d2 = dist2(v, e.pos);
         if (d2 < collision_dist2) return true;
     }
 
@@ -123,7 +125,7 @@ bool collision_detection(vec2 p) {
 
 
 // 2.5D raycast renderer for the map and entities around the player
-void render_map(vec2 p, int pa) {
+void render_map(vec2 p, int pa, bool is_shooting) {
 
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
     depth_buf_info depth_buf[SCREEN_WIDTH];
@@ -135,10 +137,10 @@ void render_map(vec2 p, int pa) {
         ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
         ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
 
-        float wall_dist = MAX_VIEW_DIST;
-        segment closest_wall;
-        depth_buf_info info = {0, 0, 0, 0};
         int wall2pt;
+        bool hit_wall = false;
+        segment closest_wall;
+        depth_buf_info info = {MAX_VIEW_DIST, 0, 0, 0};
 
         // Checks if the ray from the camera intersects any walls
         for (int j = 0; j < NUM_WALLS; j++) {
@@ -148,24 +150,22 @@ void render_map(vec2 p, int pa) {
 
             // Checks if the intersected wall is the closest to the camera
             float ptDist2 = dist2(pt, p);
-            if (ptDist2 < wall_dist) {
-                wall_dist = ptDist2;
+            if (ptDist2 < info.depth) {
+                info.depth = ptDist2;
                 closest_wall = walls[j];
+                hit_wall = true;
                 wall2pt = dist2(pt, closest_wall.u);
             }
         }
 
-        info.depth = wall_dist;
-
         // If ray hit a wall
-        if (wall_dist < MAX_VIEW_DIST) {
+        if (hit_wall) {
             // Draws lines at the edges of walls
             int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
             wall2pt = 1 / inv_sqrt(wall2pt);
 
             info.phase = wall2pt % 10 < 5;
-            info.length = 1000 * inv_sqrt(wall_dist);
-            info.depth = wall_dist;
+            info.length = 1000 * inv_sqrt(info.depth);
             if (wall2pt < 2 || wall2pt > wall_len - 2) {
                 vertical_line(i, info.length, 1, 2);
                 
@@ -194,7 +194,7 @@ void render_map(vec2 p, int pa) {
 
         float enemy_angle = atan2f(cross(e_vec, ray_vec), dot(e_vec, ray_vec)) * 180 / PI;
         if (enemy_angle >= FOV / 2 || enemy_angle < -FOV / 2) continue;
-        
+
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
         float enemy_dist2 = dist2(e.pos, p);
         float enemy_dist_inv = inv_sqrt(enemy_dist2);
@@ -216,7 +216,16 @@ void render_map(vec2 p, int pa) {
         if (!draw) continue;
 
         int enemy_screen_y = WALL_OFFSET - scale_height / 3;
-        oled_write_bmp_P_scaled(e.s[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
+        if (is_shooting && enemy_angle >= -FOV / 8 && enemy_angle < FOV / 8) {
+            oled_write_bmp_P_scaled(e.s_hurt[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
+            if (--enemies[i].health < 0) {
+                reload_enemy(&enemies[i]);
+                score++;
+            }
+        
+        } else {
+            oled_write_bmp_P_scaled(e.s[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
+        }
 
         // Redraw walls where entity sprite should be behind
         for (int j = enemy_screen_l; j < enemy_screen_r; j++) {
@@ -301,7 +310,7 @@ void oled_write_bmp_P(sprite img, int x, int y) {
     int row = 0, col = 0;
     for (int i = 0; i < img.size; i++) {
         uint8_t c = pgm_read_byte(img.bmp++);
-        uint8_t m = img.bmp == NULL ? 0x00 : pgm_read_byte(img.mask++);
+        uint8_t m = img.mask == NULL ? 0x00 : pgm_read_byte(img.mask++);
 
         for (int j = 0; j < 8; j++) {
             bool px = c & (1 << (7 - j));
@@ -356,10 +365,34 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
     }
 }
 
+// =================== ENEMY LOGIC ===================
+
+void reload_enemy(enemy* e) {
+
+    e->health = 10;
+    while (1) {
+        e->pos = enemy_spawn_locations[timer_elapsed(game_time) % NUM_ENEMY_LOCATIONS];
+        if (dist2(e->pos, p) > e->width * e->width) return;
+    }
+}
+
 void enemy_update() {
 
+    int enemy_vision_range2 = ENEMY_VISION_RANGE * ENEMY_VISION_RANGE;
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
+        float player_dist2 = dist2(e.pos, p);
+        if (player_dist2 > enemy_vision_range2 || player_dist2 <= 300) continue;
+
+        if (abs(e.pos.y - p.y) > 1) {
+            vec2 eny = {e.pos.x, e.pos.y + ENEMY_WALK_SPEED * (p.y - e.pos.y > 0 ? 1 : -1)};
+            if (!collision_detection(eny, true)) enemies[i].pos.y = eny.y;
+        }
+
+        if (abs(e.pos.x - p.x) > 1) {
+            vec2 enx = {e.pos.x + ENEMY_WALK_SPEED * (p.x - e.pos.x > 0 ? 1 : -1), e.pos.y};
+            if (!collision_detection(enx, true)) enemies[i].pos.x = enx.x;
+        }
     }
 }
 
@@ -370,7 +403,7 @@ void enemy_update() {
 void doom_setup(void) {
 
     // Runs intro sequence
-    oled_write_bmp_P(doom_logo, doom_logo_size, LOGO_WIDTH, LOGO_HEIGHT, 0, 0, false);
+    oled_write_bmp_P(doom_logo_sprite, 0, 0);
     game_time = timer_read();
 
     // Initializes player state
@@ -389,19 +422,19 @@ void doom_update(controls c) {
     if (c.shoot && shot_timer == 0) shot_timer = 5;
 
     if (c.l) {
-        pa -= pa - ROTATION_SPEED < 0 ? ROTATION_SPEED + 360 : ROTATION_SPEED;
+        pa -= ROTATION_SPEED < 0 ? ROTATION_SPEED + 360 : ROTATION_SPEED;
     }
 
     if (c.r) {
-        pa += pa + ROTATION_SPEED >= 360 ? ROTATION_SPEED - 360 : ROTATION_SPEED;
+        pa += ROTATION_SPEED >= 360 ? ROTATION_SPEED - 360 : ROTATION_SPEED;
     }
 
-    if (!c.f != !c.u) {
-        int walk_dist = c.f ? WALK_SPEED : -WALK_SPEEd;
+    if (!c.d != !c.u) {
+        int walk_dist = c.u ? WALK_SPEED : -WALK_SPEED;
         vec2 pnx = {p.x + walk_dist * cos(pa * (PI / 180)), p.y};
         vec2 pny = {p.x, p.y + walk_dist * sin(pa * (PI / 180))};
-        if (!collision_detection(pnx)) p.x = pnx.x;
-        if (!collision_detection(pny)) p.y = pny.y;
+        if (!collision_detection(pnx, false)) p.x = pnx.x;
+        if (!collision_detection(pny, false)) p.y = pny.y;
     }
 
     for (int i = 0; i < SCREEN_WIDTH; i++) {
@@ -419,8 +452,12 @@ void doom_update(controls c) {
     oled_write(get_u8_str(score, ' '), false);
 
     enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
-    render_map(p, pa);
-    draw_gun(c.f, shot_timer > 0);
+    enemies[1].anim_state = enemies[0].anim_state;
+    if (timer_elapsed(game_time) % 200 < 100)
+        enemy_update();
+
+    render_map(p, pa, shot_timer > 0 && c.shoot);
+    draw_gun(c.u, shot_timer > 0);
 }
 
 
