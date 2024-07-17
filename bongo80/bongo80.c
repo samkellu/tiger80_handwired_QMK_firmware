@@ -37,6 +37,10 @@ uint8_t score;
 int gun_x = GUN_X;
 int gun_y = GUN_Y + 10;
 
+// Level
+segment* walls = NULL;
+int num_walls = 0;
+
 // =================== MATH =================== //
 
 float dot(vec2 u, vec2 v) { return u.x * v.x + u.y * v.y; }
@@ -102,7 +106,7 @@ float inv_sqrt(float num) {
 bool collision_detection(vec2 v, bool is_enemy) {
 
     int collision_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
-    for (int i = 0; i < NUM_WALLS; i++) {
+    for (int i = 0; i < num_walls; i++) {
         segment w = walls[i];
         float d2 = point_ray_dist2(v, w);
         if (d2 < collision_dist2) return true;
@@ -118,6 +122,52 @@ bool collision_detection(vec2 v, bool is_enemy) {
     }
 
     return false;
+}
+
+
+// =================== MAP GENERATION =================== //
+
+
+segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth) {
+    if (depth == 0) {
+        if (r - MIN_ROOM_WIDTH <= l + MIN_ROOM_WIDTH || b - MIN_ROOM_WIDTH <= t + MIN_ROOM_WIDTH) return walls;
+
+        walls = (segment*) realloc(walls, sizeof(segment) * (*num_walls + 4));
+        walls[*num_walls]       = (segment) {{l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
+        walls[*num_walls + 1]   = (segment) {{l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}, {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
+        walls[*num_walls + 2]   = (segment) {{r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}, {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}};
+        walls[*num_walls + 3]   = (segment) {{r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}};
+        *num_walls += 4;
+        return walls;
+    }
+
+    // Split on longest axis
+    if (r - l >= b - t) {
+        if (r-l < MIN_ROOM_WIDTH) return walls;
+        
+        int split = rand() % (r + 1 - l) + l;
+        if (split - l > MIN_ROOM_WIDTH) {
+            walls = bsp_wallgen(walls, num_walls, l, split, t, b, depth - 1);
+        }
+
+        if (r - split > MIN_ROOM_WIDTH) {
+            walls = bsp_wallgen(walls, num_walls, split, r, t, b, depth - 1);
+        }
+
+    } else {
+        if (b-t < MIN_ROOM_WIDTH) return walls;
+
+        int split = rand() % (b + 1 - t) + t;
+        if (split - t > MIN_ROOM_WIDTH) {
+            walls = bsp_wallgen(walls, num_walls, l, r, t, split, depth - 1);
+        }
+
+        if (b - split > MIN_ROOM_WIDTH) {
+            walls = bsp_wallgen(walls, num_walls, l, r, split, b, depth - 1);
+        }
+    }
+
+    return walls;
 }
 
 
@@ -143,7 +193,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         depth_buf_info info = {MAX_VIEW_DIST, 0, 0, 0};
 
         // Checks if the ray from the camera intersects any walls
-        for (int j = 0; j < NUM_WALLS; j++) {
+        for (int j = 0; j < num_walls; j++) {
             bool hit = false;
             vec2 pt = raycast(walls[j], ray, &hit);
             if (!hit) continue;
@@ -405,12 +455,26 @@ void doom_setup(void) {
     // Runs intro sequence
     oled_write_bmp_P(doom_logo_sprite, 0, 0);
     game_time = timer_read();
+    srand(game_time);
+
+    walls = (segment*) malloc(sizeof(segment) * 4);
+    num_walls = 0;
+    walls[num_walls++] = (segment) {{0, 300}, {300, 300}};
+    walls[num_walls++] = (segment) {{300, 300}, {300, 0}};
+    walls[num_walls++] = (segment) {{300, 0}, {0, 0}};
+    walls[num_walls++] = (segment) {{0, 0}, {0, 300}};
+    walls = bsp_wallgen(walls, &num_walls, 0, 300, 0, 300, MAP_GEN_REC_DEPTH);
 
     // Initializes player state
-    p = (vec2) {20.0f, 20.0f};
+    p = (vec2) {10.0f, 10.0f};
     pa = 0;
     shot_timer = 0;
     score = 0;
+}
+
+void doom_dispose(void) {
+    
+    free(walls);
 }
 
 void doom_update(controls c) {
@@ -600,6 +664,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                         break;
 
                     case DOOM:
+                        doom_dispose();
                         screen_mode = OFF;
                         break;
                 }

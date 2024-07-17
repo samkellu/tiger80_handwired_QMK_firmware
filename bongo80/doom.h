@@ -39,6 +39,8 @@
 #define WALL_OFFSET           27
 #define GUN_X                 SCREEN_WIDTH / 2
 #define GUN_Y                 UI_HEIGHT
+#define MIN_ROOM_WIDTH        20
+#define MAP_GEN_REC_DEPTH     4
 
 // Represents a place in 2D space
 typedef struct vec2 {
@@ -108,29 +110,29 @@ typedef struct depth_buf_info {
 
 
 // Initializes walls
-#define NUM_WALLS 20
-const segment walls[] PROGMEM = {
-  {{0, 0}, {200, 0}},
-  {{200, 0}, {200, 70}},
-  {{200, 70}, {160, 70}},
-  {{160, 70}, {150, 40}},
-  {{150, 40}, {120, 40}},
-  {{120, 40}, {120, 70}},
-  {{120, 70}, {140, 70}},
-  {{140, 70}, {140, 200}},
-  {{140, 200}, {0, 200}},
-  {{0, 200}, {0, 90}},
-  {{0, 90}, {80, 90}},
-  {{80, 90}, {80, 40}},
-  {{80, 40}, {60, 40}},
-  {{60, 40}, {60, 70}},
-  {{60, 70}, {0, 70}},
-  {{0, 70}, {0, 0}},
-  {{40, 170}, {40, 130}},
-  {{40, 130}, {80, 130}},
-  {{80, 130}, {80, 170}},
-  {{80, 170}, {40, 170}},
-};
+// #define NUM_WALLS 20
+// const segment walls[] PROGMEM = {
+//   {{0, 0}, {200, 0}},
+//   {{200, 0}, {200, 70}},
+//   {{200, 70}, {160, 70}},
+//   {{160, 70}, {150, 40}},
+//   {{150, 40}, {120, 40}},
+//   {{120, 40}, {120, 70}},
+//   {{120, 70}, {140, 70}},
+//   {{140, 70}, {140, 200}},
+//   {{140, 200}, {0, 200}},
+//   {{0, 200}, {0, 90}},
+//   {{0, 90}, {80, 90}},
+//   {{80, 90}, {80, 40}},
+//   {{80, 40}, {60, 40}},
+//   {{60, 40}, {60, 70}},
+//   {{60, 70}, {0, 70}},
+//   {{0, 70}, {0, 0}},
+//   {{40, 170}, {40, 130}},
+//   {{40, 130}, {80, 130}},
+//   {{80, 130}, {80, 170}},
+//   {{80, 170}, {40, 170}},
+// };
 
 
 // Doom logo intro screen, stored in PROGMEM to save global section space
@@ -419,3 +421,7 @@ float point_ray_dist2(vec2 p, segment s);
 void oled_write_bmp_P(const sprite img, int x, int y);
 
 void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x, int y);
+
+void doom_dispose(void);
+
+segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);
