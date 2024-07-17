@@ -41,6 +41,8 @@
 #define GUN_Y                 UI_HEIGHT
 #define MIN_ROOM_WIDTH        20
 #define MAP_GEN_REC_DEPTH     4
+#define MAP_WIDTH             300
+#define MAP_HEIGHT            300
 
 // Represents a place in 2D space
 typedef struct vec2 {
@@ -363,18 +365,18 @@ const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
 
 #define NUM_ENEMY_LOCATIONS 10
-const vec2 enemy_spawn_locations[] = {
-  {30, 30},
-  {100, 80},
-  {20, 180},
-  {180, 60},
-  {120, 190},
-  {180, 20},
-  {60, 180},
-  {20, 110},
-  {20, 180},
-  {120, 90}
-};
+// const vec2 enemy_spawn_locations[] = {
+//   {30, 30},
+//   {100, 80},
+//   {20, 180},
+//   {180, 60},
+//   {120, 190},
+//   {180, 20},
+//   {60, 180},
+//   {20, 110},
+//   {20, 180},
+//   {120, 90}
+// };
 
 #define NUM_ENEMIES 2
 enemy enemies[] = {

@@ -41,6 +41,8 @@ int gun_y = GUN_Y + 10;
 segment* walls = NULL;
 int num_walls = 0;
 
+vec2* enemy_spawn_locations[NUM_ENEMY_LOCATIONS];
+
 // =================== MATH =================== //
 
 float dot(vec2 u, vec2 v) { return u.x * v.x + u.y * v.y; }
@@ -513,13 +515,29 @@ void doom_setup(void) {
     game_time = timer_read();
     srand(game_time);
 
+    // Initializes the map
     walls = (segment*) malloc(sizeof(segment) * 4);
     num_walls = 0;
-    walls[num_walls++] = (segment) {{0, 300}, {300, 300}};
-    walls[num_walls++] = (segment) {{300, 300}, {300, 0}};
-    walls[num_walls++] = (segment) {{300, 0}, {0, 0}};
-    walls[num_walls++] = (segment) {{0, 0}, {0, 300}};
-    walls = bsp_wallgen(walls, &num_walls, 0, 300, 0, 300, MAP_GEN_REC_DEPTH);
+    walls[num_walls++] = (segment) {{0, MAP_HEIGHT}, {MAP_WIDTH, MAP_HEIGHT}};
+    walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}};
+    walls[num_walls++] = (segment) {{MAP_WIDTH, 0}, {0, 0}};
+    walls[num_walls++] = (segment) {{0, 0}, {0, MAP_HEIGHT}};
+    walls = bsp_wallgen(walls, &num_walls, 0, MAP_HEIGHT, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
+
+    // Initializes the list of possible enemy spawn locations
+    for (int i = 0; i < NUM_ENEMY_LOCATIONS; i++) {
+        vec2 e_pos = {srand() % MAP_WIDTH, srand() % MAP_HEIGHT};
+        bool valid = false;
+        while (!valid) {
+            for (int i = 4; i < num_walls; i+= 4) {
+                vec2 lt = walls[i+1].u;
+                vec2 rb = walls[i+3].u;
+
+                valid = (e_pos.x > rb.x || e_pos.x < lt.x) && (e_pos.y < lt.y || e_pos.y > rb.y);
+                if (valid) break;
+            }
+        }
+    }
 
     // Initializes player state
     p = (vec2) {10.0f, 10.0f};
