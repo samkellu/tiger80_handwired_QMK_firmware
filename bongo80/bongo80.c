@@ -347,6 +347,8 @@ void render_map(vec2 p, int pa, bool is_shooting) {
             }
         }
     }
+
+    free(relevant_walls);
 }
 
 void draw_gun(bool moving, bool show_flash) {
