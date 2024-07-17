@@ -180,10 +180,67 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
 // 2.5D raycast renderer for the map and entities around the player
 void render_map(vec2 p, int pa, bool is_shooting) {
 
+    // Get walls that intersect the FOV
+    relevant_walls segment* = null;
+    int num_relevant = 0;
+
+    segment cone_l = {p, {0, 0}};
+    float bound_angle = -FOV / 2;
+    cone_l.v.x = p.x + DOV * cosf((pa + bound_angle) * PI / 180);
+    cone_l.v.y = p.y + DOV * sinf((pa + bound_angle) * PI / 180);
+
+    segment cone_r = {p, {0, 0}};
+    bound_angle = FOV / 2;
+    cone_r.v.x = p.x + DOV * cosf((pa + bound_angle) * PI / 180);
+    cone_r.v.y = p.y + DOV * sinf((pa + bound_angle) * PI / 180);
+
+    float middle_ray = (SCREEN_WIDTH / 2) * (FOV / 127.0f) - (FOV / 2.0f);
+    vec2 mid_vec = {
+        DOV * cosf((pa + middle_ray) * PI / 180),
+        DOV * sinf((pa + middle_ray) * PI / 180)
+    };
+
+    for (int i = 0; i < num_walls; i++) {
+        segment w = walls[i];
+        bool hit = false;
+
+        // Check if intersects the bounds of the fov cone
+        raycast(cone_l, w, &hit)l
+        if (!hit) {
+            raycast(cone_r, w, &hit)l
+        }
+
+        // Check if entirely contained within the FOV cone
+        if (!hit) {
+            vec2 endpoint_vec = {
+                w.u.x - p.x,
+                w.u.y - p.y
+            };
+
+            float from_mid = atan2f(cross(endpoint_vec, mid_vec), dot(endpoint_vec, mid_vec)) * 180 / PI;
+            hit = from_mid >= -FOV / 2 && from_mid <= FOV / 2;
+        }
+
+        if (!hit) {
+            vec2 endpoint_vec = {
+                w.v.x - p.x,
+                w.v.y - p.y
+            };
+
+            float from_mid = atan2f(cross(endpoint_vec, mid_vec), dot(endpoint_vec, mid_vec)) * 180 / PI;
+            hit = from_mid >= -FOV / 2 && from_mid <= FOV / 2;
+        }
+
+        if (hit) {
+            relevant_walls = (segment*) realloc(relevant_walls, sizeof(segment) * ++num_relevant);
+            relevant_walls[num_relevant - 1] = w;
+        }
+    }
+    
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
     depth_buf_info depth_buf[SCREEN_WIDTH];
     segment ray = {p, {0, 0}};
-    
+
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
         float ray_angle = (i * FOV / SCREEN_WIDTH) - (FOV / 2);
@@ -196,16 +253,16 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         depth_buf_info info = {MAX_VIEW_DIST, 0, 0, 0};
 
         // Checks if the ray from the camera intersects any walls
-        for (int j = 0; j < num_walls; j++) {
+        for (int j = 0; j < num_relevant; j++) {
             bool hit = false;
-            vec2 pt = raycast(walls[j], ray, &hit);
+            vec2 pt = raycast(relevant_walls[j], ray, &hit);
             if (!hit) continue;
 
             // Checks if the intersected wall is the closest to the camera
             float ptDist2 = dist2(pt, p);
             if (ptDist2 < info.depth) {
                 info.depth = ptDist2;
-                closest_wall = walls[j];
+                closest_wall = relevant_walls[j];
                 hit_wall = true;
                 wall2pt = dist2(pt, closest_wall.u);
             }
@@ -232,12 +289,6 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         depth_buf[i+1] = depth_buf[i];
     }
 
-    float middle_ray = (SCREEN_WIDTH / 2) * (FOV / 127.0f) - (FOV / 2.0f);
-    vec2 ray_vec = {
-        DOV * cosf((pa + middle_ray) * PI / 180),
-        DOV * sinf((pa + middle_ray) * PI / 180)
-    };
-
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
         vec2 e_vec = {
@@ -245,7 +296,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
             e.pos.y - p.y
         };
 
-        float enemy_angle = atan2f(cross(e_vec, ray_vec), dot(e_vec, ray_vec)) * 180 / PI;
+        float enemy_angle = atan2f(cross(e_vec, mid_vec), dot(e_vec, mid_vec)) * 180 / PI;
         if (enemy_angle >= FOV / 2 || enemy_angle < -FOV / 2) continue;
 
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
