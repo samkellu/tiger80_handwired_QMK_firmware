@@ -130,7 +130,10 @@ bool collision_detection(vec2 v, bool is_enemy) {
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth) {
     if (depth == 0) {
+        // Prevent walls being created in small cells
         if (r - MIN_ROOM_WIDTH <= l + MIN_ROOM_WIDTH || b - MIN_ROOM_WIDTH <= t + MIN_ROOM_WIDTH) return walls;
+        // Prevent thin walls being created
+        if (r - l - 2 * MIN_ROOM_WIDTH < 5 || b - t - 2 * MIN_ROOM_WIDTH < 5) return walls;
 
         walls = (segment*) realloc(walls, sizeof(segment) * (*num_walls + 4));
         walls[*num_walls]       = (segment) {{l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
