@@ -507,6 +507,19 @@ void enemy_update() {
 
 // =================== GAME LOGIC =================== //
 
+vec2 get_valid_spawn() {
+
+    while (1) {
+        vec2 e_pos = {srand() % MAP_WIDTH, srand() % MAP_HEIGHT};
+        for (int i = 4; i < num_walls; i+= 4) {
+            vec2 lt = walls[i+1].u;
+            vec2 rb = walls[i+3].u;
+
+            valid = (e_pos.x > rb.x || e_pos.x < lt.x) && (e_pos.y < lt.y || e_pos.y > rb.y);
+            if (valid) return e_pos;
+        }
+    }
+}
 
 void doom_setup(void) {
 
@@ -526,21 +539,11 @@ void doom_setup(void) {
 
     // Initializes the list of possible enemy spawn locations
     for (int i = 0; i < NUM_ENEMY_LOCATIONS; i++) {
-        vec2 e_pos = {srand() % MAP_WIDTH, srand() % MAP_HEIGHT};
-        bool valid = false;
-        while (!valid) {
-            for (int i = 4; i < num_walls; i+= 4) {
-                vec2 lt = walls[i+1].u;
-                vec2 rb = walls[i+3].u;
-
-                valid = (e_pos.x > rb.x || e_pos.x < lt.x) && (e_pos.y < lt.y || e_pos.y > rb.y);
-                if (valid) break;
-            }
-        }
+        enemy_spawn_locations[i] = get_valid_spawn();
     }
 
     // Initializes player state
-    p = (vec2) {10.0f, 10.0f};
+    p = get_valid_spawn();
     pa = 0;
     shot_timer = 0;
     score = 0;
