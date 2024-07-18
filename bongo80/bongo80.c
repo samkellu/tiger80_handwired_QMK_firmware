@@ -338,7 +338,11 @@ void render_map(vec2 p, int pa, bool is_shooting) {
             depth_buf_info info = depth_buf[j];
             if (info.depth > enemy_dist2) continue;
 
-            vertical_line(j, info.length, 0, 1);
+            for (int k = 0; k < UI_HEIGHT; k++) {
+                oled_write_pixel(j, k, 0);
+            }
+            
+            vertical_line(j, SCREEN_HEIGHT, 0, 1);
             if (j % 2 == 0) {
                 if (info.is_checked) {
                     check_line(j, info.length, info.phase);
@@ -378,7 +382,10 @@ void draw_gun(bool moving, bool show_flash) {
 void vertical_line(int x, int half_length, bool color, int skip) {
     
     for (int i = 0; i < half_length; i += skip) {
-        oled_write_pixel(x, WALL_OFFSET - i, color);
+        if (WALL_OFFSET - i >= 0) {
+            oled_write_pixel(x, WALL_OFFSET - i, color);
+        }
+
         // Ensures that the wall doesnt overlap with the UI
         if (WALL_OFFSET + i < UI_HEIGHT) {
             oled_write_pixel(x, WALL_OFFSET + i, color);
