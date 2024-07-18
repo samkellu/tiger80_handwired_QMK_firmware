@@ -585,21 +585,12 @@ void doom_update(controls c) {
     // Displays the current game time
     oled_set_cursor(1, 7);
     oled_write_P(PSTR("TIME:"), false);
-    uint32_t time = timer_elapsed(game_time) / 1000;
-    unsigned char tbuf[4];
-    tbuf[0] = time >> 24;
-    tbuf[1] = time >> 16;
-    tbuf[2] = time >> 8;
-    tbuf[3] = time;
-
-
-    
-    oled_write(get_u16_str((float) timer_elapsed(game_time) / 1000, ' '), false);
+    oled_write(get_u32_str(timer_elapsed(game_time) / 1000), false);
 
     // Displays the players current score
     oled_set_cursor(12, 7);
     oled_write_P(PSTR("SCORE:"), false);
-    oled_write(get_u32_str(score), false);
+    oled_write(get_u16_str(score, ' '), false);
 
     enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
     enemies[1].anim_state = enemies[0].anim_state;
