@@ -150,7 +150,7 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
     if (r - l >= b - t) {
         if (r-l < MIN_ROOM_WIDTH) return walls;
         
-        int split = rand() % (r + 1 - l) + l;
+        int split = rand() % r;
         if (split - l > MIN_ROOM_WIDTH) {
             walls = bsp_wallgen(walls, num_walls, l, split, t, b, depth - 1);
         }
@@ -162,7 +162,7 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
     } else {
         if (b-t < MIN_ROOM_WIDTH) return walls;
 
-        int split = rand() % (b + 1 - t) + t;
+        int split = rand() % b;
         if (split - t > MIN_ROOM_WIDTH) {
             walls = bsp_wallgen(walls, num_walls, l, r, t, split, depth - 1);
         }
@@ -507,7 +507,7 @@ void enemy_update() {
 
 // =================== GAME LOGIC =================== //
 
-vec2 get_valid_spawn() {
+vec2 get_valid_spawn(void) {
 
     while (1) {
         vec2 e_pos = {srand() % MAP_WIDTH, srand() % MAP_HEIGHT};
@@ -585,12 +585,21 @@ void doom_update(controls c) {
     // Displays the current game time
     oled_set_cursor(1, 7);
     oled_write_P(PSTR("TIME:"), false);
+    uint32_t time = timer_elapsed(game_time) / 1000;
+    unsigned char tbuf[4];
+    tbuf[0] = time >> 24;
+    tbuf[1] = time >> 16;
+    tbuf[2] = time >> 8;
+    tbuf[3] = time;
+
+
+    
     oled_write(get_u16_str((float) timer_elapsed(game_time) / 1000, ' '), false);
 
     // Displays the players current score
     oled_set_cursor(12, 7);
     oled_write_P(PSTR("SCORE:"), false);
-    oled_write(get_u8_str(score, ' '), false);
+    oled_write(get_u32_str(score), false);
 
     enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
     enemies[1].anim_state = enemies[0].anim_state;
@@ -599,6 +608,20 @@ void doom_update(controls c) {
 
     render_map(p, pa, shot_timer > 0 && c.shoot);
     draw_gun(c.u, shot_timer > 0);
+}
+
+const char* get_u32_str(uint_32 value) {
+    static char buf[11] = {0};
+    buf[10] = '\0';
+
+    bool in_pad = true;
+    for (int i = 0; i < 10; i++) {
+        char c = 0x30 + value % 10;
+        buf[9 - i] = (c == 0x30 && in_pad) ? ' ' : c;
+        value /= 10;
+    }
+
+    return buf;
 }
 
 

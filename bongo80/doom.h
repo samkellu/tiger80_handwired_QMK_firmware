@@ -426,4 +426,8 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
 
 void doom_dispose(void);
 
+vec2 get_valid_spawn(void);
+
+const char* get_u32_str(uint_32 value);
+
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);
