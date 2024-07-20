@@ -90,6 +90,9 @@ typedef struct depth_buf_info {
   bool is_checked;
 } depth_buf_info;
 
+#define NUM_ENEMIES 2
+enemy enemies[2];
+
 // +-----------------------------------------+
 // |                                         |
 // |                                         |
@@ -109,33 +112,6 @@ typedef struct depth_buf_info {
 // |                           |
 // |                           |
 // +---------------------------+
-
-
-// Initializes walls
-// #define NUM_WALLS 20
-// const segment walls[] PROGMEM = {
-//   {{0, 0}, {200, 0}},
-//   {{200, 0}, {200, 70}},
-//   {{200, 70}, {160, 70}},
-//   {{160, 70}, {150, 40}},
-//   {{150, 40}, {120, 40}},
-//   {{120, 40}, {120, 70}},
-//   {{120, 70}, {140, 70}},
-//   {{140, 70}, {140, 200}},
-//   {{140, 200}, {0, 200}},
-//   {{0, 200}, {0, 90}},
-//   {{0, 90}, {80, 90}},
-//   {{80, 90}, {80, 40}},
-//   {{80, 40}, {60, 40}},
-//   {{60, 40}, {60, 70}},
-//   {{60, 70}, {0, 70}},
-//   {{0, 70}, {0, 0}},
-//   {{40, 170}, {40, 130}},
-//   {{40, 130}, {80, 130}},
-//   {{80, 130}, {80, 170}},
-//   {{80, 170}, {40, 170}},
-// };
-
 
 // Doom logo intro screen, stored in PROGMEM to save global section space
 #define LOGO_WIDTH 128
@@ -363,27 +339,6 @@ const sprite imp_sprite_hurt_2 = {
 
 const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
-
-#define NUM_ENEMY_LOCATIONS 10
-// const vec2 enemy_spawn_locations[] = {
-//   {30, 30},
-//   {100, 80},
-//   {20, 180},
-//   {180, 60},
-//   {120, 190},
-//   {180, 20},
-//   {60, 180},
-//   {20, 110},
-//   {20, 180},
-//   {120, 90}
-// };
-
-#define NUM_ENEMIES 2
-enemy enemies[] = {
-  {enemy_spawn_locations[9], 10, 8, 0, 0, imp_sheet, sizeof(imp_sheet), imp_hurt_sheet, sizeof(imp_hurt_sheet)},
-  {enemy_spawn_locations[2], 10, 8, 0, 0, imp_sheet, sizeof(imp_sheet), imp_hurt_sheet, sizeof(imp_hurt_sheet)}
-};
-
 float pow2(float x);
 
 float dot(vec2 v, vec2 u);
@@ -428,6 +383,6 @@ void doom_dispose(void);
 
 vec2 get_valid_spawn(void);
 
-const char* get_u32_str(uint_32 value);
+const char* get_u32_str(uint32_t value);
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);

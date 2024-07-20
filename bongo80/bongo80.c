@@ -41,8 +41,6 @@ int gun_y = GUN_Y + 10;
 segment* walls = NULL;
 int num_walls = 0;
 
-vec2* enemy_spawn_locations[NUM_ENEMY_LOCATIONS];
-
 // =================== MATH =================== //
 
 float dot(vec2 u, vec2 v) { return u.x * v.x + u.y * v.y; }
@@ -183,7 +181,7 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
 void render_map(vec2 p, int pa, bool is_shooting) {
 
     // Get walls that intersect the FOV
-    relevant_walls segment* = null;
+    segment* relevant_walls = NULL;
     int num_relevant = 0;
 
     segment cone_l = {p, {0, 0}};
@@ -207,9 +205,9 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         bool hit = false;
 
         // Check if intersects the bounds of the fov cone
-        raycast(cone_l, w, &hit)l
+        raycast(cone_l, w, &hit);
         if (!hit) {
-            raycast(cone_r, w, &hit)l
+            raycast(cone_r, w, &hit);
         }
 
         // Check if entirely contained within the FOV cone
@@ -486,7 +484,7 @@ void reload_enemy(enemy* e) {
 
     e->health = 10;
     while (1) {
-        e->pos = enemy_spawn_locations[timer_elapsed(game_time) % NUM_ENEMY_LOCATIONS];
+        e->pos = get_valid_spawn();
         if (dist2(e->pos, p) > e->width * e->width) return;
     }
 }
@@ -516,13 +514,15 @@ void enemy_update() {
 
 vec2 get_valid_spawn(void) {
 
+    int col_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
     while (1) {
-        vec2 e_pos = {srand() % MAP_WIDTH, srand() % MAP_HEIGHT};
+        vec2 e_pos = {rand() % MAP_WIDTH, rand() % MAP_HEIGHT};
         for (int i = 4; i < num_walls; i+= 4) {
             vec2 lt = walls[i+1].u;
             vec2 rb = walls[i+3].u;
 
-            valid = (e_pos.x > rb.x || e_pos.x < lt.x) && (e_pos.y < lt.y || e_pos.y > rb.y);
+            bool valid = e_pos.x > rb.x + col_dist2 || e_pos.x < lt.x - col_dist2;
+            valid &= e_pos.y < lt.y - col_dist2 || e_pos.y > rb.y + col_dist2;
             if (valid) return e_pos;
         }
     }
@@ -545,8 +545,8 @@ void doom_setup(void) {
     walls = bsp_wallgen(walls, &num_walls, 0, MAP_HEIGHT, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
 
     // Initializes the list of possible enemy spawn locations
-    for (int i = 0; i < NUM_ENEMY_LOCATIONS; i++) {
-        enemy_spawn_locations[i] = get_valid_spawn();
+    for (int i = 0; i < NUM_ENEMIES; i++) {
+        enemies[i] = (enemy) {get_valid_spawn(), 10, 8, 0, 0, imp_sheet, sizeof(imp_sheet), imp_hurt_sheet, sizeof(imp_hurt_sheet)};
     }
 
     // Initializes player state
@@ -608,14 +608,15 @@ void doom_update(controls c) {
     draw_gun(c.u, shot_timer > 0);
 }
 
-const char* get_u32_str(uint_32 value) {
+const char* get_u32_str(uint32_t value) {
     static char buf[11] = {0};
     buf[10] = '\0';
 
     bool in_pad = true;
     for (int i = 0; i < 10; i++) {
         char c = 0x30 + value % 10;
-        buf[9 - i] = (c == 0x30 && in_pad) ? ' ' : c;
+        in_pad = in_pad && c == 0x30;
+        buf[9 - i] = (c == 0x30 && !in_pad) ? ' ' : c;
         value /= 10;
     }
 
