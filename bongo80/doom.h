@@ -32,7 +32,7 @@
 #define ENEMY_WALK_SPEED      1
 #define ROTATION_SPEED        5
 #define WALK_SPEED            2
-#define DOV                   100.0f
+#define DOV                   400.0f
 #define FOV                   80.0f
 #define MAX_VIEW_DIST         100000.0f
 #define UI_HEIGHT             54
