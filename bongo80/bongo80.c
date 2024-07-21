@@ -359,8 +359,8 @@ void draw_gun(bool moving, bool show_flash) {
 
     // Walking animation
     if (moving) {
-        gun_x = GUN_X + 8 * sin((double) timer_elapsed(game_time) * 0.005);
-        gun_y = GUN_Y + 3 + 3 * cos((double) timer_elapsed(game_time) * 0.01);
+        gun_x = GUN_X + 8 * sin((double) timer_elapsed32(game_time) * 0.005);
+        gun_y = GUN_Y + 3 + 3 * cos((double) timer_elapsed32(game_time) * 0.01);
     
     // Slowly move gun back to centre when not moving
     } else {
@@ -563,7 +563,7 @@ void doom_dispose(void) {
 
 void doom_update(controls c) {
 
-    if (timer_elapsed(game_time) < START_TIME_MILLI) return;
+    if (timer_elapsed32(game_time) < START_TIME_MILLI) return;
 
     oled_clear();
     if (shot_timer > 0) shot_timer--;
@@ -591,15 +591,15 @@ void doom_update(controls c) {
 
     // Displays the current game time
     oled_set_cursor(1, 7);
-    oled_write_P(PSTR("TIME:"), false);
-    oled_write(get_u32_str(timer_elapsed(game_time) / 1000), false);
+    oled_write_P(PSTR("TIME: "), false);
+    oled_write(get_u32_str((timer_elapsed32(game_time) - START_TIME_MILLI) / 1000), false);
 
     // Displays the players current score
     oled_set_cursor(12, 7);
     oled_write_P(PSTR("SCORE:"), false);
     oled_write(get_u16_str(score, ' '), false);
 
-    enemies[0].anim_state = timer_elapsed(game_time) % 2000 < 1000 ? 0 : 1;
+    enemies[0].anim_state = timer_elapsed32(game_time) % 2000 < 1000 ? 0 : 1;
     enemies[1].anim_state = enemies[0].anim_state;
     if (timer_elapsed(game_time) % 200 < 100)
         enemy_update();
@@ -612,12 +612,19 @@ const char* get_u32_str(uint32_t value) {
     static char buf[11] = {0};
     buf[10] = '\0';
 
-    bool in_pad = true;
     for (int i = 0; i < 10; i++) {
         char c = 0x30 + value % 10;
-        in_pad = in_pad && c == 0x30;
-        buf[9 - i] = (c == 0x30 && !in_pad) ? ' ' : c;
+        buf[9 - i] = c;
         value /= 10;
+        if (value == 0) {
+            int curs = 0;
+            int offset = 9 - i;
+            do {
+                buf[curs] = buf[curs + offset];
+            } while (buf[curs++ + offset] != '\0');
+
+            return buf;
+        }
     }
 
     return buf;
@@ -788,7 +795,7 @@ bool oled_task_kb(void) {
             break;
 
         case DOOM:
-            if (timer_elapsed(frame_time) > FRAME_TIME_MILLI) {
+            if (timer_elapsed32(frame_time) > FRAME_TIME_MILLI) {
                 doom_update(doom_inputs);
                 frame_time = timer_read();
             }
