@@ -32,6 +32,7 @@ uint32_t time;
 uint32_t game_time;
 uint32_t frame_time;
 uint8_t score;
+bool initialized = false;
 
 // Gun animation
 int gun_x = GUN_X;
@@ -136,11 +137,10 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
         if (r - l - 2 * MIN_ROOM_WIDTH < 5 || b - t - 2 * MIN_ROOM_WIDTH < 5) return walls;
 
         walls = (segment*) realloc(walls, sizeof(segment) * (*num_walls + 4));
-        walls[*num_walls]       = (segment) {{l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
-        walls[*num_walls + 1]   = (segment) {{l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}, {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
-        walls[*num_walls + 2]   = (segment) {{r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}, {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}};
-        walls[*num_walls + 3]   = (segment) {{r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}};
-        *num_walls += 4;
+        walls[(*num_walls)++] = (segment) {{l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
+        walls[(*num_walls)++] = (segment) {{l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}, {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
+        walls[(*num_walls)++] = (segment) {{r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}, {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}};
+        walls[(*num_walls)++] = (segment) {{r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}};
         return walls;
     }
 
@@ -516,15 +516,21 @@ vec2 get_valid_spawn(void) {
 
     int col_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
     while (1) {
-        vec2 e_pos = {rand() % MAP_WIDTH, rand() % MAP_HEIGHT};
-        for (int i = 4; i < num_walls; i+= 4) {
+        vec2 new_pos = {rand() % MAP_WIDTH, rand() % MAP_HEIGHT};
+        bool valid = true;
+        for (int i = 4; i < num_walls; i += 4) {
             vec2 lt = walls[i+1].u;
             vec2 rb = walls[i+3].u;
 
-            bool valid = e_pos.x > rb.x + col_dist2 || e_pos.x < lt.x - col_dist2;
-            valid &= e_pos.y < lt.y - col_dist2 || e_pos.y > rb.y + col_dist2;
-            if (valid) return e_pos;
+            valid &= new_pos.x > rb.x + col_dist2
+                  || new_pos.x < lt.x - col_dist2
+                  || new_pos.y < lt.y - col_dist2
+                  || new_pos.y > rb.y + col_dist2;
+                        
+            if (!valid) continue;
         }
+
+        if (valid) return new_pos;
     }
 }
 
@@ -542,7 +548,7 @@ void doom_setup(void) {
     walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}};
     walls[num_walls++] = (segment) {{MAP_WIDTH, 0}, {0, 0}};
     walls[num_walls++] = (segment) {{0, 0}, {0, MAP_HEIGHT}};
-    walls = bsp_wallgen(walls, &num_walls, 0, MAP_HEIGHT, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
+    walls = bsp_wallgen(walls, &num_walls, 0, MAP_WIDTH, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
 
     // Initializes the list of possible enemy spawn locations
     for (int i = 0; i < NUM_ENEMIES; i++) {
@@ -554,16 +560,18 @@ void doom_setup(void) {
     pa = 0;
     shot_timer = 0;
     score = 0;
+    initialized = true;
 }
 
 void doom_dispose(void) {
     
     free(walls);
+    initialized = false;
 }
 
 void doom_update(controls c) {
 
-    if (timer_elapsed32(game_time) < START_TIME_MILLI) return;
+    if (!initialized || timer_elapsed32(game_time) < START_TIME_MILLI) return;
 
     oled_clear();
     if (shot_timer > 0) shot_timer--;
