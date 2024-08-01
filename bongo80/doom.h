@@ -43,6 +43,8 @@
 #define MAP_GEN_REC_DEPTH     4
 #define MAP_WIDTH             300
 #define MAP_HEIGHT            300
+#define DOOR_WIDTH            10
+#define DOOR_IDX              0
 
 // Represents a place in 2D space
 typedef struct vec2 {

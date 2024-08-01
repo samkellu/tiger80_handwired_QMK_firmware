@@ -26,6 +26,7 @@
 vec2 p;
 int pa;
 int shot_timer;
+bool has_key = false;
 
 // Game management information
 uint32_t time;
@@ -276,7 +277,8 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
             info.phase = wall2pt % 10 < 5;
             info.length = 1000 * inv_sqrt(info.depth);
-            if (wall2pt < 2 || wall2pt > wall_len - 2) {
+            bool is_door = closest_wall.u.x == walls[DOOR_IDX].u.x && closest_wall.u.y == walls[DOOR_IDX].u.y && closest_wall.v.x == walls[DOOR_IDX].v.x && closest_wall.v.y == walls[DOOR_IDX].v.y; 
+            if (is_door || wall2pt < 2 || wall2pt > wall_len - 2) {
                 vertical_line(i, info.length, 1, 2);
                 
             } else {
@@ -512,13 +514,14 @@ void enemy_update() {
 
 // =================== GAME LOGIC =================== //
 
+
 vec2 get_valid_spawn(void) {
 
     int col_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
     while (1) {
         vec2 new_pos = {rand() % MAP_WIDTH, rand() % MAP_HEIGHT};
         bool valid = true;
-        for (int i = 4; i < num_walls; i += 4) {
+        for (int i = 5; i < num_walls; i += 4) {
             vec2 lt = walls[i+1].u;
             vec2 rb = walls[i+3].u;
 
@@ -541,13 +544,30 @@ void doom_setup(void) {
     game_time = timer_read();
     srand(game_time);
 
-    // Initializes the map
-    walls = (segment*) malloc(sizeof(segment) * 4);
-    num_walls = 0;
+    // Initializes the map and door
+    walls = (segment*) malloc(sizeof(segment) * 5);
+    num_walls = 1;
     walls[num_walls++] = (segment) {{0, MAP_HEIGHT}, {MAP_WIDTH, MAP_HEIGHT}};
     walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}};
     walls[num_walls++] = (segment) {{MAP_WIDTH, 0}, {0, 0}};
     walls[num_walls++] = (segment) {{0, 0}, {0, MAP_HEIGHT}};
+
+    int wall_door = 1 + rand() % 4;
+    segment door_wall = walls[wall_door];
+    float wall_len = inv_sqrt(dist2(door_wall.v, door_wall.u));
+    float door_width_perc = DOOR_WIDTH / wall_len;
+    float wall_placement_perc = (rand() % (int) (100 - door_width_perc)) / (float) 100;
+    float dx = door_wall.v.x - door_wall.u.x;
+    float dy = door_wall.v.y - door_wall.u.y;
+
+    segment door;
+    door.u.x = door_wall.v.x + (dx * wall_placement_perc);
+    door.u.y = door_wall.v.y + (dy * wall_placement_perc);
+    door.v.x = door_wall.v.x + (dx * (wall_placement_perc + door_width_perc));
+    door.v.y = door_wall.v.y + (dy * (wall_placement_perc + door_width_perc));
+    walls[0] = door;
+    walls[wall_door] = door;
+
     walls = bsp_wallgen(walls, &num_walls, 0, MAP_WIDTH, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
 
     // Initializes the list of possible enemy spawn locations
@@ -560,6 +580,7 @@ void doom_setup(void) {
     pa = 0;
     shot_timer = 0;
     score = 0;
+    has_key = false;
     initialized = true;
 }
 
