@@ -43,7 +43,7 @@
 #define MAP_GEN_REC_DEPTH     4
 #define MAP_WIDTH             300
 #define MAP_HEIGHT            300
-#define DOOR_WIDTH            10
+#define DOOR_WIDTH            20
 #define DOOR_IDX              0
 
 // Represents a place in 2D space
@@ -51,9 +51,16 @@ typedef struct vec2 {
   float x, y;
 } vec2;
 
+enum wall_tex {
+  NONE,
+  CHECK,
+  DOOR
+};
+
 // A line segment or ray
 typedef struct segment {
   vec2 u, v;
+  wall_tex tex;
 } segment;
 
 // Control package given as input

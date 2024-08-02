@@ -138,10 +138,30 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
         if (r - l - 2 * MIN_ROOM_WIDTH < 5 || b - t - 2 * MIN_ROOM_WIDTH < 5) return walls;
 
         walls = (segment*) realloc(walls, sizeof(segment) * (*num_walls + 4));
-        walls[(*num_walls)++] = (segment) {{l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
-        walls[(*num_walls)++] = (segment) {{l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}, {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}};
-        walls[(*num_walls)++] = (segment) {{r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH}, {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}};
-        walls[(*num_walls)++] = (segment) {{r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}, {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH}};
+        walls[(*num_walls)++] = (segment) {
+            {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
+            {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
+            wall_tex.CHECK
+        };
+
+        walls[(*num_walls)++] = (segment) {
+            {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
+            {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
+            wall_tex.CHECK
+        };
+
+        walls[(*num_walls)++] = (segment) {
+            {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
+            {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
+            wall_tex.CHECK
+        };
+
+        walls[(*num_walls)++] = (segment) {
+            {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
+            {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
+            wall_tex.CHECK
+        };
+
         return walls;
     }
 
@@ -271,19 +291,31 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
         // If ray hit a wall
         if (hit_wall) {
+            if (wall.tex == wall_tex.NONE) continue;
+
             // Draws lines at the edges of walls
             int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
             wall2pt = 1 / inv_sqrt(wall2pt);
 
             info.phase = wall2pt % 10 < 5;
             info.length = 1000 * inv_sqrt(info.depth);
-            bool is_door = closest_wall.u.x == walls[DOOR_IDX].u.x && closest_wall.u.y == walls[DOOR_IDX].u.y && closest_wall.v.x == walls[DOOR_IDX].v.x && closest_wall.v.y == walls[DOOR_IDX].v.y; 
-            if (is_door || wall2pt < 2 || wall2pt > wall_len - 2) {
-                vertical_line(i, info.length, 1, 2);
+
+            switch (wall.tex) {
+                case wall_tex.CHECK:
+                    if (wall2pt < 2 || wall2pt > wall_len - 2) {
+                        vertical_line(i, info.length, 1, 2);
+                        
+                    } else {
+                        info.is_checked = true;
+                        check_line(i, info.length, info.phase);
+                    }
+
+                    break;
                 
-            } else {
-                info.is_checked = true;
-                check_line(i, info.length, info.phase);
+                case wall_tex.DOOR:
+                    vertical_line(i, info.length, 1, 2);
+                    break;
+
             }
         }
 
@@ -521,7 +553,7 @@ vec2 get_valid_spawn(void) {
     while (1) {
         vec2 new_pos = {rand() % MAP_WIDTH, rand() % MAP_HEIGHT};
         bool valid = true;
-        for (int i = 5; i < num_walls; i += 4) {
+        for (int i = 6; i < num_walls; i += 4) {
             vec2 lt = walls[i+1].u;
             vec2 rb = walls[i+3].u;
 
@@ -545,12 +577,12 @@ void doom_setup(void) {
     srand(game_time);
 
     // Initializes the map and door
-    walls = (segment*) malloc(sizeof(segment) * 5);
+    walls = (segment*) malloc(sizeof(segment) * 6);
     num_walls = 1;
-    walls[num_walls++] = (segment) {{0, MAP_HEIGHT}, {MAP_WIDTH, MAP_HEIGHT}};
-    walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}};
-    walls[num_walls++] = (segment) {{MAP_WIDTH, 0}, {0, 0}};
-    walls[num_walls++] = (segment) {{0, 0}, {0, MAP_HEIGHT}};
+    walls[num_walls++] = (segment) {{0, MAP_HEIGHT}, {MAP_WIDTH, MAP_HEIGHT}, wall_tex.CHECK};
+    walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}, wall_tex.CHECK};
+    walls[num_walls++] = (segment) {{MAP_WIDTH, 0}, {0, 0}, wall_tex.CHECK};
+    walls[num_walls++] = (segment) {{0, 0}, {0, MAP_HEIGHT}, wall_tex.CHECK};
 
     int wall_door = 1 + rand() % 4;
     segment door_wall = walls[wall_door];
@@ -560,13 +592,19 @@ void doom_setup(void) {
     float dx = door_wall.v.x - door_wall.u.x;
     float dy = door_wall.v.y - door_wall.u.y;
 
-    segment door;
-    door.u.x = door_wall.v.x + (dx * wall_placement_perc);
-    door.u.y = door_wall.v.y + (dy * wall_placement_perc);
-    door.v.x = door_wall.v.x + (dx * (wall_placement_perc + door_width_perc));
-    door.v.y = door_wall.v.y + (dy * (wall_placement_perc + door_width_perc));
-    walls[0] = door;
-    walls[wall_door] = door;
+    vec2 door_start = {
+        door_wall.u.x + (dx * wall_placement_perc),
+        door.u.y = door_wall.u.y + (dy * wall_placement_perc)
+    };
+
+    vec2 door_end = {
+        door_wall.u.x + (dx * (wall_placement_perc + door_width_perc)),
+        door.v.y = door_wall.u.y + (dy * (wall_placement_perc + door_width_perc))
+    };
+
+    walls[0] = (segment) {door_start, door_end, wall_tex.DOOR};
+    walls[num_walls++] = (segment) {door_end,{door_wall.v.x, door_wall.v.y}, wall_tex.CHECK}
+    door_wall.v = door_start;
 
     walls = bsp_wallgen(walls, &num_walls, 0, MAP_WIDTH, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
 
@@ -618,10 +656,16 @@ void doom_update(controls c) {
         oled_write_pixel(i, UI_HEIGHT, 1);
     }
 
+    oled_set_cursor(0, 0);
+    oled_write(get_u16_str(walls[0].u.x, ' '), false);
+    oled_write(get_u16_str(walls[0].u.y, ' '), false);
+    oled_write(get_u16_str(walls[0].v.x, ' '), false);
+    oled_write(get_u16_str(walls[0].v.y, ' '), false);
+
     // Displays the current game time
     oled_set_cursor(1, 7);
     oled_write_P(PSTR("TIME: "), false);
-    oled_write(get_u32_str((timer_elapsed32(game_time) - START_TIME_MILLI) / 1000), false);
+    oled_write(get_u32_str((timer_elapsed32(game_time) - START_TIME_MILLI) / 1000, ' '), false);
 
     // Displays the players current score
     oled_set_cursor(12, 7);
@@ -637,23 +681,14 @@ void doom_update(controls c) {
     draw_gun(c.u, shot_timer > 0);
 }
 
-const char* get_u32_str(uint32_t value) {
+const char* get_u32_str(uint32_t value, char pad) {
     static char buf[11] = {0};
     buf[10] = '\0';
 
     for (int i = 0; i < 10; i++) {
         char c = 0x30 + value % 10;
-        buf[9 - i] = c;
+        buf[9 - i] = (c == 0x30 && i == 0) ? c : value > 0 ? c : pad;
         value /= 10;
-        if (value == 0) {
-            int curs = 0;
-            int offset = 9 - i;
-            do {
-                buf[curs] = buf[curs + offset];
-            } while (buf[curs++ + offset] != '\0');
-
-            return buf;
-        }
     }
 
     return buf;
