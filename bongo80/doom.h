@@ -102,26 +102,6 @@ typedef struct depth_buf_info {
 #define NUM_ENEMIES 2
 enemy enemies[2];
 
-// +-----------------------------------------+
-// |                                         |
-// |                                         |
-// |          +-+     +------------+         |
-// |          | |     |            |         |
-// |          | |     |            |         |
-// +----------+ |     +--------+   +---------+
-// +------------+              |
-// |                           |
-// |                           |
-// |       +--------+          |
-// |       |        |          |
-// |       |        |          |
-// |       |        |          |
-// |       |        |          |
-// |       +--------+          |
-// |                           |
-// |                           |
-// +---------------------------+
-
 // Doom logo intro screen, stored in PROGMEM to save global section space
 #define LOGO_WIDTH 128
 #define LOGO_HEIGHT 64
