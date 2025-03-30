@@ -1,5 +1,8 @@
+#define USE_EMULATOR
+
 #include <SDL2/SDL.h>
 #include "../bongo80/doom.h"
+#include "../bongo80/bongo80.h"
 
 int initSDL(SDL_Window** window, SDL_Renderer** renderer)
 {
@@ -12,7 +15,7 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
     *window = SDL_CreateWindow("QMK Emulator", 
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
-                              SCR_WIDTH, SCR_HEIGHT, 0);
+                              128, 64, 0);
 
     if (!*window)
     {
@@ -52,6 +55,7 @@ int main()
         goto clean;
     }
 
+    oled_state screen_mode = DOOM;
     while (1)
     {
         while (SDL_PollEvent(&event))
@@ -59,53 +63,46 @@ int main()
             switch (event.type)
             {
                 case SDL_QUIT:
-                    goto clean;
+                goto clean;
             }
         }
-
-        int dx = 0, dz = 0;
+        
+        controls doom_inputs;
         const uint8_t* currentKeyStates = SDL_GetKeyboardState(NULL);
-        if (currentKeyStates[SDL_SCANCODE_UP]) dz++;
-        if (currentKeyStates[SDL_SCANCODE_DOWN]) dz--;
-        if (currentKeyStates[SDL_SCANCODE_LEFT]) dx--;
-        if (currentKeyStates[SDL_SCANCODE_RIGHT]) dx++;
+        if (currentKeyStates[SDL_SCANCODE_UP]) 
+            doom_inputs.u = true;
 
-        Vec3 dd = {0, 0, 0}, headingXNorm = {0, 0, 0}, headingZNorm = {0, 0, 0};
-        if (dx != 0)
-        {
-            headingXNorm = (Vec3) {0, heading.y, 0}.cross({0, 0, heading.z});
-            headingXNorm.normalize();
-            if (headingXNorm.x == 0 && headingXNorm.y == 0 && headingXNorm.z == 0)
-            {
-                headingXNorm.x += dx;
-            }
-            else
-            {
-                headingXNorm = headingXNorm * dx;
-            }
+        if (currentKeyStates[SDL_SCANCODE_DOWN])
+            doom_inputs.d = true;
+
+        if (currentKeyStates[SDL_SCANCODE_LEFT])
+            doom_inputs.l = true;
+
+        if (currentKeyStates[SDL_SCANCODE_RIGHT])
+            doom_inputs.r = true;
+        
+        if (currentKeyStates[SDLK_SPACE])
+            doom_inputs.shoot = true;
+
+
+        switch (screen_mode) {
+            case CAT:
+                curr_wpm = 50;
+                led_usb_state = 1;
+                render_wpm();
+                render_bongocat();
+                break;
+    
+            case DOOM:
+                if (timer_elapsed32(frame_time) > FRAME_TIME_MILLI) {
+                    doom_update(doom_inputs);
+                    frame_time = timer_read();
+                }
+                break;
+            
+            default:
+                break;
         }
-
-        if (dz != 0)
-        {
-            headingZNorm = (Vec3) {heading.x, 0, 0}.cross({0, heading.y, 0});
-            headingZNorm.normalize();
-            if (headingZNorm.x == 0 && headingZNorm.y == 0 && headingZNorm.z == 0)
-            {
-                headingZNorm.z += dz;
-            }
-            else
-            {
-                headingZNorm = headingZNorm * dz;
-            }
-        }
-
-        dd = headingZNorm + headingXNorm;
-        dd.normalize();
-        position.add(dd * STEP_SIZE);
-
-        getFrame(fb, slr, position, heading, worldMesh);
-        drawFrame(renderer, fb);
-        // SDL_Delay(10);
     }   
 
 clean:

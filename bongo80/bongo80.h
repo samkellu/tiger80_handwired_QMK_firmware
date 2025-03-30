@@ -16,7 +16,9 @@
 
 #pragma once
 
-#include "quantum.h"
+#ifndef USE_EMULATOR
+  #include "quantum.h"
+#endif
 
 // Time per frame in millis
 #define FRAME_LENGTH_SLOW 400

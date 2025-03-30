@@ -16,7 +16,9 @@
 
 #pragma once
 
-#include "quantum.h"
+#ifndef USE_EMULATOR
+  #include "quantum.h"
+#endif
 
 #define SCREEN_WIDTH          128
 #define SCREEN_HEIGHT         64
