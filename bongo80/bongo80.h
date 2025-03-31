@@ -15,6 +15,8 @@
  */
 
 #pragma once
+#ifndef BONGO_INCL
+#define BONGO_INCL
 
 #ifdef USE_EMULATOR
   #include "../emulator/emulator.h"
@@ -803,3 +805,5 @@ static uint8_t frame_set_index = 0;
 
 static uint8_t curr_wpm = 0;
 static led_t led_usb_state;
+
+#endif

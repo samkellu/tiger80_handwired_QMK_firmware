@@ -40,7 +40,10 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
     return 1;
 }
 
-int oled_write_pixel(int, int, int);
+int oled_write_pixel(int, int, int)
+{
+    return 1;
+}
 
 int timer_read() {
     struct timespec t;
@@ -52,7 +55,11 @@ uint32_t timer_elapsed32() {
     return timer_read();
 }
 
-int oled_set_cursor(int, int);
+int oled_set_cursor(int, int)
+{
+    return 1;
+}
+
 int oled_write(const char* str, int smth) {
     return 1;
 }
@@ -61,9 +68,20 @@ int oled_write_P(const char* str, int smth) {
     return oled_write(str, smth);
 }
 
-int oled_clear();
-int get_current_wpm();
-int host_keyboard_led_state();
+int oled_clear()
+{
+    return 1;
+}
+
+int get_current_wpm()
+{
+    return 1;
+}
+
+int host_keyboard_led_state()
+{
+    return 1;
+}
 
 char* get_u8_str(uint8_t val, char pad) {
     return "test";

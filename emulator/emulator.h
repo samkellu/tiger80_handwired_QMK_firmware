@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 // #include "../bongo80/doom.h"
 // #include "../bongo80/bongo80.h"
 
