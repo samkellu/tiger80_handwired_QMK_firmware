@@ -16,7 +16,9 @@
 
 #pragma once
 
-#ifndef USE_EMULATOR
+#ifdef USE_EMULATOR
+  #include "../emulator/emulator.h"
+#else
   #include "quantum.h"
 #endif
 
@@ -53,11 +55,11 @@ typedef struct vec2 {
   float x, y;
 } vec2;
 
-enum wall_tex {
+typedef enum wall_tex {
   NONE,
   CHECK,
   DOOR
-};
+} wall_tex;
 
 // A line segment or ray
 typedef struct segment {

@@ -34,7 +34,10 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
 }
 
 int oled_write_pixel(int, int, int);
-int timer_read();
+int timer_read() {
+    return millis();
+}
+
 int timer_elapsed32();
 int oled_set_cursor(int, int);
 int oled_write(long, int);
@@ -42,6 +45,10 @@ int oled_clear();
 int get_current_wpm();
 int host_keyboard_led_state();
 
+uint8_t pgm_read_byte(const void* addr)
+{
+    return *(uint8_t*) addr;
+}
 
 int main()
 {
@@ -55,7 +62,9 @@ int main()
         goto clean;
     }
 
-    oled_state screen_mode = DOOM;
+    uint32_t frame_time = timer_read();
+    enum oled_state screen_mode = DOOM;
+    controls doom_inputs = {0, 0, 0, 0, 0};
     while (1)
     {
         while (SDL_PollEvent(&event))
@@ -87,8 +96,6 @@ int main()
 
         switch (screen_mode) {
             case CAT:
-                curr_wpm = 50;
-                led_usb_state = 1;
                 render_wpm();
                 render_bongocat();
                 break;

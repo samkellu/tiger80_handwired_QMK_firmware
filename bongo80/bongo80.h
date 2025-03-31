@@ -16,7 +16,9 @@
 
 #pragma once
 
-#ifndef USE_EMULATOR
+#ifdef USE_EMULATOR
+  #include "../emulator/emulator.h"
+#else
   #include "quantum.h"
 #endif
 

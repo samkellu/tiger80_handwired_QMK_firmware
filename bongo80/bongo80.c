@@ -14,6 +14,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+ // TODO: Remove, just for linting
+#ifndef USE_EMULATOR
+    #define USE_EMULATOR
+#endif
+
 #include "bongo80.h"
 
 
@@ -141,25 +146,25 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
         walls[(*num_walls)++] = (segment) {
             {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
             {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
-            wall_tex.CHECK
+            CHECK
         };
 
         walls[(*num_walls)++] = (segment) {
             {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
             {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
-            wall_tex.CHECK
+            CHECK
         };
 
         walls[(*num_walls)++] = (segment) {
             {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
             {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
-            wall_tex.CHECK
+            CHECK
         };
 
         walls[(*num_walls)++] = (segment) {
             {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
             {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
-            wall_tex.CHECK
+            CHECK
         };
 
         return walls;
@@ -291,7 +296,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
         // If ray hit a wall
         if (hit_wall) {
-            if (wall.tex == wall_tex.NONE) continue;
+            if (closest_wall.tex == NONE) continue;
 
             // Draws lines at the edges of walls
             int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
@@ -300,8 +305,8 @@ void render_map(vec2 p, int pa, bool is_shooting) {
             info.phase = wall2pt % 10 < 5;
             info.length = 1000 * inv_sqrt(info.depth);
 
-            switch (wall.tex) {
-                case wall_tex.CHECK:
+            switch (closest_wall.tex) {
+                case CHECK:
                     if (wall2pt < 2 || wall2pt > wall_len - 2) {
                         vertical_line(i, info.length, 1, 2);
                         
@@ -312,7 +317,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
                     break;
                 
-                case wall_tex.DOOR:
+                case DOOR:
                     vertical_line(i, info.length, 1, 2);
                     break;
 
@@ -579,10 +584,10 @@ void doom_setup(void) {
     // Initializes the map and door
     walls = (segment*) malloc(sizeof(segment) * 6);
     num_walls = 1;
-    walls[num_walls++] = (segment) {{0, MAP_HEIGHT}, {MAP_WIDTH, MAP_HEIGHT}, wall_tex.CHECK};
-    walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}, wall_tex.CHECK};
-    walls[num_walls++] = (segment) {{MAP_WIDTH, 0}, {0, 0}, wall_tex.CHECK};
-    walls[num_walls++] = (segment) {{0, 0}, {0, MAP_HEIGHT}, wall_tex.CHECK};
+    walls[num_walls++] = (segment) {{0, MAP_HEIGHT}, {MAP_WIDTH, MAP_HEIGHT}, CHECK};
+    walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}, CHECK};
+    walls[num_walls++] = (segment) {{MAP_WIDTH, 0}, {0, 0}, CHECK};
+    walls[num_walls++] = (segment) {{0, 0}, {0, MAP_HEIGHT}, CHECK};
 
     int wall_door = 1 + rand() % 4;
     segment door_wall = walls[wall_door];
@@ -602,8 +607,8 @@ void doom_setup(void) {
         door.v.y = door_wall.u.y + (dy * (wall_placement_perc + door_width_perc))
     };
 
-    walls[0] = (segment) {door_start, door_end, wall_tex.DOOR};
-    walls[num_walls++] = (segment) {door_end,{door_wall.v.x, door_wall.v.y}, wall_tex.CHECK}
+    walls[0] = (segment) {door_start, door_end, DOOR};
+    walls[num_walls++] = (segment) {door_end,{door_wall.v.x, door_wall.v.y}, CHECK};
     door_wall.v = door_start;
 
     walls = bsp_wallgen(walls, &num_walls, 0, MAP_WIDTH, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
@@ -729,17 +734,14 @@ const struct frame_set caps[] = {
 
 const struct frame_set* frame_sets[] = {no_caps, caps};
 
-uint8_t curr_frame_index = 0;
-uint8_t frame_set_index = 0;
+static uint8_t curr_frame_index = 0;
+static uint8_t frame_set_index = 0;
 
 static uint8_t curr_wpm = 0;
-led_t led_usb_state;
-enum oled_state screen_mode = OFF;
+static led_t led_usb_state;
 
-controls doom_inputs = {0, 0, 0, 0, 0};
-
-static void render_wpm(void) {
-
+static void render_wpm() {
+    
     // Writes the WPM to the screen, and caps if enabled
     oled_set_cursor(0, 7);
     oled_write_P(PSTR("WPM:"), false);
@@ -747,61 +749,66 @@ static void render_wpm(void) {
     oled_set_cursor(17, 0);
     if (led_usb_state.caps_lock) {
         oled_write_P(PSTR("CAPS"), false);
-
+        
     } else {
         oled_write_P(PSTR("    "), false);
     }
 }
 
 static void render_bongocat(void) {
-
+    
     oled_set_cursor(0, 0);
     // Allows for frameset to change to caps state without waiting for end of frame set
     struct frame_set curr_frame_set = frame_sets[led_usb_state.caps_lock][frame_set_index];
-
+    
     // Updates frame being displayed based on set interval
     if (timer_elapsed(time) > curr_frame_set.frame_len) {
-
+        
         time = timer_read();
-
+        
         // Ensures a smoothly animated transition between the different states of the animation
         if (curr_frame_index == curr_frame_set.size - 1) {
-
+            
             // Assigns frameset based on typing speed
             if (curr_wpm <= IDLE_UPPER_BOUND) {
                 frame_set_index = IDLE;
-
+                
             } else if (curr_wpm <= SLOW_UPPER_BOUND) {
                 frame_set_index = SLOW;
-
+                
             } else if (curr_wpm <= MED_UPPER_BOUND) {
                 frame_set_index = MED;
-
+                
             } else {
                 frame_set_index = FAST;
             }
-
+            
             curr_frame_index = 0;
-
+            
         } else {
             curr_frame_index++;
         }
-
+        
         oled_write_raw_P(curr_frame_set.frames[curr_frame_index], frame_size);
     }
 }
+
+#ifndef USE_EMULATOR
+enum oled_state screen_mode = OFF;
+
+controls doom_inputs = {0, 0, 0, 0, 0};
 
 bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     
     if (screen_mode == DOOM) {
         switch (keycode) {
             case KC_UP:
-                doom_inputs.u = record->event.pressed;
-                return false;
+            doom_inputs.u = record->event.pressed;
+            return false;
             
             case KC_DOWN:
-                doom_inputs.d = record->event.pressed;
-                return false;
+            doom_inputs.d = record->event.pressed;
+            return false;
 
             case KC_LEFT:
                 doom_inputs.l = record->event.pressed;
@@ -871,3 +878,4 @@ bool oled_task_kb(void) {
 
     return false;
 }
+#endif

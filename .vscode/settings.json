@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "doom.h": "c"
+        "doom.h": "c",
+        "bongo80.h": "c",
+        "sdl.h": "c",
+        "random": "cpp"
     }
 }

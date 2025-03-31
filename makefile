@@ -1,13 +1,14 @@
-CXX = g++
-CXXFLAGS = -Wall -std=c++11 -g
-SRC = scanline.cpp
-TARGET = $(SRC:.cpp=)
+CXX = gcc
+CXXFLAGS = -std=c++11 -g
+SRC = emulator/emulator.c
+TARGET = $(SRC:.c=)
 SDLFLAGS = -lSDL2
+INCL = bongo80/bongo80.c
 
 all:build
 
 build:
-	$(CXX) $(SRC) $(SDLFLAGS) -o $(TARGET)
+	$(CXX) $(SRC) $(INCL) -DUSE_EMULATOR $(SDLFLAGS) -o $(TARGET)
 
 clean:
 	rm -f $(TARGET)
