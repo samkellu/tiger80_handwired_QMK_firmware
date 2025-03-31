@@ -1,8 +1,14 @@
-#define USE_EMULATOR
+#ifndef USE_EMULATOR
+    #define USE_EMULATOR
+#endif
 
 #include <SDL2/SDL.h>
+#include "emulator.h"
 #include "../bongo80/doom.h"
 #include "../bongo80/bongo80.h"
+
+static int screen_mode = DOOM;
+controls doom_inputs = {0, 0, 0, 0, 0};
 
 int initSDL(SDL_Window** window, SDL_Renderer** renderer)
 {
@@ -40,7 +46,12 @@ int timer_read() {
 
 int timer_elapsed32();
 int oled_set_cursor(int, int);
-int oled_write(long, int);
+int oled_write(char* str, int smth);
+
+int oled_write_P(char* str, int smth) {
+    return oled_write(str, smth);
+}
+
 int oled_clear();
 int get_current_wpm();
 int host_keyboard_led_state();
@@ -63,8 +74,6 @@ int main()
     }
 
     uint32_t frame_time = timer_read();
-    enum oled_state screen_mode = DOOM;
-    controls doom_inputs = {0, 0, 0, 0, 0};
     while (1)
     {
         while (SDL_PollEvent(&event))
@@ -116,28 +125,6 @@ clean:
     SDL_DestroyWindow(window);
     SDL_DestroyRenderer(renderer);
     SDL_Quit();
-    if (fb && fb->buf)
-    {
-        for (int i = 0; i < fb->width; i++)
-        {
-            free(fb->buf[i]);
-        }
-
-        free(fb->buf);
-        free(fb);
-    }
-
-    if (slr && slr->rays)
-    {
-        for (int i = 0; i < slr->width; i++)
-        {
-            free(slr->rays[i]);
-        }
-
-        free(slr->rays);
-        free(slr);
-    }
-
     return 0;
 }
 
