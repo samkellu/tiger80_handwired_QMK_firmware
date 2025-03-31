@@ -3,6 +3,7 @@
 #endif
 
 #include <SDL2/SDL.h>
+#include <time.h>
 #include "emulator.h"
 #include "../bongo80/doom.h"
 #include "../bongo80/bongo80.h"
@@ -40,15 +41,23 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
 }
 
 int oled_write_pixel(int, int, int);
+
 int timer_read() {
-    return millis();
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC_RAW , & t); // change CLOCK_MONOTONIC_RAW to CLOCK_MONOTONIC on non linux computers
+    return t.tv_sec * 1000 + (t.tv_nsec + 500000) / 1000000;
 }
 
-int timer_elapsed32();
-int oled_set_cursor(int, int);
-int oled_write(char* str, int smth);
+uint32_t timer_elapsed32() {
+    return timer_read();
+}
 
-int oled_write_P(char* str, int smth) {
+int oled_set_cursor(int, int);
+int oled_write(const char* str, int smth) {
+    return 1;
+}
+
+int oled_write_P(const char* str, int smth) {
     return oled_write(str, smth);
 }
 
@@ -56,10 +65,20 @@ int oled_clear();
 int get_current_wpm();
 int host_keyboard_led_state();
 
+char* get_u8_str(uint8_t val, char pad) {
+    return "test";
+};
+
+char* get_u16_str(uint16_t val, char pad) {
+    return "test";
+};
+
 uint8_t pgm_read_byte(const void* addr)
 {
     return *(uint8_t*) addr;
 }
+
+uint32_t frame_time = 0;
 
 int main()
 {
@@ -73,7 +92,9 @@ int main()
         goto clean;
     }
 
-    uint32_t frame_time = timer_read();
+    screen_mode = DOOM;
+    doom_setup();
+
     while (1)
     {
         while (SDL_PollEvent(&event))
@@ -126,84 +147,4 @@ clean:
     SDL_DestroyRenderer(renderer);
     SDL_Quit();
     return 0;
-}
-
-
-bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
-    
-    if (screen_mode == DOOM) {
-        switch (keycode) {
-            case KC_UP:
-                doom_inputs.u = record->event.pressed;
-                return false;
-            
-            case KC_DOWN:
-                doom_inputs.d = record->event.pressed;
-                return false;
-
-            case KC_LEFT:
-                doom_inputs.l = record->event.pressed;
-                return false;
-
-            case KC_RIGHT:
-                doom_inputs.r = record->event.pressed;
-                return false;
-
-            case KC_SPC:
-                doom_inputs.shoot = record->event.pressed;
-                return false;
-        }
-
-    } else if (!process_record_user(keycode, record)) return false;
-
-    switch (keycode) {
-        // Handles the keycode for turning on and off the oled screen
-        case KC_OLED_STATE:
-            if (record->event.pressed) {
-                oled_clear();
-                switch (screen_mode) {
-                    case OFF:
-                        screen_mode = CAT;
-                        break;
-
-                    case CAT:
-                        screen_mode = DOOM;
-                        doom_setup();
-                        break;
-
-                    case DOOM:
-                        doom_dispose();
-                        screen_mode = OFF;
-                        break;
-                }
-            }
-
-            return false;
-    }
-    
-    return true;
-}
-
-bool oled_task_kb(void) {
-
-    switch (screen_mode) {
-        case CAT:
-            curr_wpm = get_current_wpm();
-            led_usb_state = host_keyboard_led_state();
-            render_wpm();
-            render_bongocat();
-            break;
-
-        case DOOM:
-            if (timer_elapsed32(frame_time) > FRAME_TIME_MILLI) {
-                doom_update(doom_inputs);
-                frame_time = timer_read();
-            }
-            break;
-        
-        default:
-            break;
-    }
-
-    return false;
 }

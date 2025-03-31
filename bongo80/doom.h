@@ -376,6 +376,6 @@ void doom_dispose(void);
 
 vec2 get_valid_spawn(void);
 
-const char* get_u32_str(uint32_t value);
+const char* get_u32_str(uint32_t value, char pad);
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);

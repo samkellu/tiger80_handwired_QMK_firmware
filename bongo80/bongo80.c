@@ -599,12 +599,12 @@ void doom_setup(void) {
 
     vec2 door_start = {
         door_wall.u.x + (dx * wall_placement_perc),
-        door.u.y = door_wall.u.y + (dy * wall_placement_perc)
+        door_wall.u.y = door_wall.u.y + (dy * wall_placement_perc)
     };
 
     vec2 door_end = {
         door_wall.u.x + (dx * (wall_placement_perc + door_width_perc)),
-        door.v.y = door_wall.u.y + (dy * (wall_placement_perc + door_width_perc))
+        door_wall.v.y = door_wall.u.y + (dy * (wall_placement_perc + door_width_perc))
     };
 
     walls[0] = (segment) {door_start, door_end, DOOR};
@@ -702,44 +702,6 @@ const char* get_u32_str(uint32_t value, char pad) {
 
 // =================== BONGO CAT =================== //
 
-
-// Animation frame sequences
-const char* idle_no_caps[] = {idle_0, idle_0, idle_0, idle_0, idle_1, idle_2, idle_1, idle_0};
-const char* slow_no_caps[] = {idle_0, both_down, idle_0};
-const char* med_no_caps[]  = {left_down, idle_0, both_down, idle_0, right_down, idle_0};
-const char* fast_no_caps[] = {left_down, right_down};
-
-const char* idle_caps[] = {idle_0_open, idle_0_open, idle_0_open, idle_0_open, idle_1_open, idle_2_open, idle_1_open, idle_0_open};
-const char* slow_caps[] = {idle_0_open, both_down_open, idle_0_open};
-const char* med_caps[]  = {left_down_open, idle_0_open, both_down_open, idle_0_open, right_down_open, idle_0_open};
-const char* fast_caps[] = {left_down_open, right_down_open};
-
-// Size of a singular frame in the animation
-const size_t frame_size = sizeof(idle_0);
-
-// Framesets for each typing state
-const struct frame_set no_caps[] = {
-    {.frames = idle_no_caps, .size = sizeof(idle_no_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_SLOW},
-    {.frames = slow_no_caps, .size = sizeof(slow_no_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_SLOW},
-    {.frames = med_no_caps,  .size = sizeof(med_no_caps) / sizeof(char*),  .frame_len = FRAME_LENGTH_MED},
-    {.frames = fast_no_caps, .size = sizeof(fast_no_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_FAST}
-};
-
-const struct frame_set caps[] = {
-    {.frames = idle_caps, .size = sizeof(idle_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_SLOW},
-    {.frames = slow_caps, .size = sizeof(slow_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_SLOW},
-    {.frames = med_caps,  .size = sizeof(med_caps) / sizeof(char*),  .frame_len = FRAME_LENGTH_MED},
-    {.frames = fast_caps, .size = sizeof(fast_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_FAST}
-};
-
-const struct frame_set* frame_sets[] = {no_caps, caps};
-
-static uint8_t curr_frame_index = 0;
-static uint8_t frame_set_index = 0;
-
-static uint8_t curr_wpm = 0;
-static led_t led_usb_state;
-
 static void render_wpm() {
     
     // Writes the WPM to the screen, and caps if enabled
@@ -755,7 +717,7 @@ static void render_wpm() {
     }
 }
 
-static void render_bongocat(void) {
+static void render_bongocat() {
     
     oled_set_cursor(0, 0);
     // Allows for frameset to change to caps state without waiting for end of frame set
