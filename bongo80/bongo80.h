@@ -20,6 +20,7 @@
 
 #ifdef USE_EMULATOR
   #include "../emulator/emulator.h"
+  #include <stdio.h>
 #else
   #include "quantum.h"
 #endif

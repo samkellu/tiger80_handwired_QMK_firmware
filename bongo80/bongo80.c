@@ -582,7 +582,7 @@ void doom_setup(void) {
     srand(game_time);
 
     // Initializes the map and door
-    walls = (segment*) malloc(sizeof(segment) * 6);
+    walls = (segment*) malloc(sizeof(segment) * 5);
     num_walls = 1;
     walls[num_walls++] = (segment) {{0, MAP_HEIGHT}, {MAP_WIDTH, MAP_HEIGHT}, CHECK};
     walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}, CHECK};
@@ -608,7 +608,7 @@ void doom_setup(void) {
     };
 
     walls[0] = (segment) {door_start, door_end, DOOR};
-    walls[num_walls++] = (segment) {door_end,{door_wall.v.x, door_wall.v.y}, CHECK};
+    // walls[num_walls++] = (segment) {door_end,{door_wall.v.x, door_wall.v.y}, CHECK};
     door_wall.v = door_start;
 
     walls = bsp_wallgen(walls, &num_walls, 0, MAP_WIDTH, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
@@ -676,6 +676,10 @@ void doom_update(controls c) {
     oled_set_cursor(12, 7);
     oled_write_P(PSTR("SCORE:"), false);
     oled_write(get_u16_str(score, ' '), false);
+
+    // TODO: DEBUG
+    printf("(%lf, %lf) (%lf, %lf)\n", walls[0].u.x,  walls[0].u.y,  walls[0].v.x,  walls[0].v.y);
+    printf("Player: (%lf, %lf)\n", p.x,  p.y);
 
     enemies[0].anim_state = timer_elapsed32(game_time) % 2000 < 1000 ? 0 : 1;
     enemies[1].anim_state = enemies[0].anim_state;

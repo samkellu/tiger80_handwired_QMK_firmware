@@ -47,9 +47,8 @@ int oled_write_pixel(int x, int y, bool white)
 {
     if (white) {
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    }
-    else
-    {
+        
+    } else {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     }
 
@@ -63,8 +62,8 @@ int timer_read() {
     return t.tv_sec * 1000 + (t.tv_nsec + 500000) / 1000000;
 }
 
-uint32_t timer_elapsed32() {
-    return timer_read();
+uint32_t timer_elapsed32(int t) {
+    return timer_read() - t;
 }
 
 int timer_elapsed() {
@@ -77,6 +76,7 @@ int oled_set_cursor(int, int)
 }
 
 int oled_write(const char* str, int smth) {
+    printf("%s\n", str);
     return 1;
 }
 
@@ -92,6 +92,7 @@ int oled_write_raw_P(const char* c, size_t n)
 
 int oled_clear()
 {
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     return 1;
 }
@@ -132,6 +133,7 @@ int main()
 
     screen_mode = DOOM;
     doom_setup();
+    controls doom_inputs;
 
     while (1)
     {
@@ -140,27 +142,44 @@ int main()
             switch (event.type)
             {
                 case SDL_QUIT:
-                goto clean;
+                    goto clean;
+
+                case SDL_KEYDOWN:
+                    if (event.key.keysym.sym == SDLK_UP)
+                        doom_inputs.u = true;
+
+                    else if (event.key.keysym.sym == SDLK_DOWN)
+                        doom_inputs.d = true;
+
+                    else if (event.key.keysym.sym == SDLK_LEFT)
+                        doom_inputs.l = true;
+
+                    else if (event.key.keysym.sym == SDLK_RIGHT)
+                        doom_inputs.r = true;
+
+                    else if (event.key.keysym.sym == SDLK_SPACE)
+                        doom_inputs.shoot = true;
+                    
+                    break;
+
+            case SDL_KEYUP:
+                if (event.key.keysym.sym == SDLK_UP)
+                    doom_inputs.u = false;
+
+                else if (event.key.keysym.sym == SDLK_DOWN)
+                    doom_inputs.d = false;
+
+                else if (event.key.keysym.sym == SDLK_LEFT)
+                    doom_inputs.l = false;
+
+                else if (event.key.keysym.sym == SDLK_RIGHT)
+                    doom_inputs.r = false;
+
+                else if (event.key.keysym.sym == SDLK_SPACE)
+                    doom_inputs.shoot = false;
+                break;
             }
         }
-        
-        controls doom_inputs;
-        const uint8_t* currentKeyStates = SDL_GetKeyboardState(NULL);
-        if (currentKeyStates[SDL_SCANCODE_UP]) 
-            doom_inputs.u = true;
-
-        if (currentKeyStates[SDL_SCANCODE_DOWN])
-            doom_inputs.d = true;
-
-        if (currentKeyStates[SDL_SCANCODE_LEFT])
-            doom_inputs.l = true;
-
-        if (currentKeyStates[SDL_SCANCODE_RIGHT])
-            doom_inputs.r = true;
-        
-        if (currentKeyStates[SDLK_SPACE])
-            doom_inputs.shoot = true;
-
 
         switch (screen_mode) {
             case CAT:
