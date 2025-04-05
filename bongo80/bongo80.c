@@ -702,7 +702,7 @@ const char* get_u32_str(uint32_t value, char pad) {
 
 // =================== BONGO CAT =================== //
 
-static void render_wpm() {
+void render_wpm() {
     
     // Writes the WPM to the screen, and caps if enabled
     oled_set_cursor(0, 7);
@@ -717,7 +717,7 @@ static void render_wpm() {
     }
 }
 
-static void render_bongocat() {
+void render_bongocat() {
     
     oled_set_cursor(0, 0);
     // Allows for frameset to change to caps state without waiting for end of frame set

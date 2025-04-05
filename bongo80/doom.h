@@ -107,7 +107,7 @@ typedef struct depth_buf_info {
 } depth_buf_info;
 
 #define NUM_ENEMIES 2
-enemy enemies[2];
+static enemy enemies[2];
 
 // Doom logo intro screen, stored in PROGMEM to save global section space
 #define LOGO_WIDTH 128
@@ -179,7 +179,7 @@ static const char doom_logo[] PROGMEM = {
   0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-const sprite doom_logo_sprite = {
+static const sprite doom_logo_sprite = {
   NULL,
   doom_logo,
   sizeof(doom_logo),
@@ -212,7 +212,7 @@ static const char gun_bmp_mask[] PROGMEM = {
   0x08, 0x28, 0x1B, 0xE0, 0x04, 0x70, 0x4D, 0xC0, 0x07, 0x82, 0xA7, 0xE0, 0x10, 0x40, 0x13, 0xC0
 };
 
-const sprite gun_sprite = {
+static const sprite gun_sprite = {
   gun_bmp_mask,
   gun_bmp,
   sizeof(gun_bmp),
@@ -228,7 +228,7 @@ static const char PROGMEM muzzle_flash_bmp [] = {
   0x3F, 0xFC, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0xFC, 0x2F, 0xFC
 };
 
-const sprite muzzle_flash_sprite = {
+static const sprite muzzle_flash_sprite = {
   NULL,
   muzzle_flash_bmp,
   sizeof(muzzle_flash_bmp),
@@ -299,7 +299,7 @@ static const char imp_bmp_mask_2[] PROGMEM = {
   0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0xC0, 0x00
 };
 
-const sprite imp_sprite_1 = {
+static const sprite imp_sprite_1 = {
   imp_bmp_mask_1,
   imp_bmp_1,
   sizeof(imp_bmp_1),
@@ -307,7 +307,7 @@ const sprite imp_sprite_1 = {
   IMP_HEIGHT
 };
 
-const sprite imp_sprite_2 = {
+static const sprite imp_sprite_2 = {
   imp_bmp_mask_2,
   imp_bmp_2,
   sizeof(imp_bmp_2),
@@ -315,9 +315,9 @@ const sprite imp_sprite_2 = {
   IMP_HEIGHT
 };
 
-const sprite imp_sheet[] = {imp_sprite_1, imp_sprite_2};
+static const sprite imp_sheet[] = {imp_sprite_1, imp_sprite_2};
 
-const sprite imp_sprite_hurt_1 = {
+static const sprite imp_sprite_hurt_1 = {
   imp_bmp_1,
   imp_bmp_mask_1,
   sizeof(imp_bmp_1),
@@ -325,7 +325,7 @@ const sprite imp_sprite_hurt_1 = {
   IMP_HEIGHT
 };
 
-const sprite imp_sprite_hurt_2 = {
+static const sprite imp_sprite_hurt_2 = {
   imp_bmp_2,
   imp_bmp_mask_2,
   sizeof(imp_bmp_2),
@@ -333,7 +333,7 @@ const sprite imp_sprite_hurt_2 = {
   IMP_HEIGHT
 };
 
-const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
+static const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
 float pow2(float x);
 

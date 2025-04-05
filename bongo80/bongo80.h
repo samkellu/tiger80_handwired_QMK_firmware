@@ -770,40 +770,44 @@ static const char right_down_open [] PROGMEM = {
 };
 
 // Animation frame sequences
-const char* idle_no_caps[] = {idle_0, idle_0, idle_0, idle_0, idle_1, idle_2, idle_1, idle_0};
-const char* slow_no_caps[] = {idle_0, both_down, idle_0};
-const char* med_no_caps[]  = {left_down, idle_0, both_down, idle_0, right_down, idle_0};
-const char* fast_no_caps[] = {left_down, right_down};
+static const char* idle_no_caps[] = {idle_0, idle_0, idle_0, idle_0, idle_1, idle_2, idle_1, idle_0};
+static const char* slow_no_caps[] = {idle_0, both_down, idle_0};
+static const char* med_no_caps[]  = {left_down, idle_0, both_down, idle_0, right_down, idle_0};
+static const char* fast_no_caps[] = {left_down, right_down};
 
-const char* idle_caps[] = {idle_0_open, idle_0_open, idle_0_open, idle_0_open, idle_1_open, idle_2_open, idle_1_open, idle_0_open};
-const char* slow_caps[] = {idle_0_open, both_down_open, idle_0_open};
-const char* med_caps[]  = {left_down_open, idle_0_open, both_down_open, idle_0_open, right_down_open, idle_0_open};
-const char* fast_caps[] = {left_down_open, right_down_open};
+static const char* idle_caps[] = {idle_0_open, idle_0_open, idle_0_open, idle_0_open, idle_1_open, idle_2_open, idle_1_open, idle_0_open};
+static const char* slow_caps[] = {idle_0_open, both_down_open, idle_0_open};
+static const char* med_caps[]  = {left_down_open, idle_0_open, both_down_open, idle_0_open, right_down_open, idle_0_open};
+static const char* fast_caps[] = {left_down_open, right_down_open};
 
 // Size of a singular frame in the animation
-const size_t frame_size = sizeof(idle_0);
+static const size_t frame_size = sizeof(idle_0);
 
 // Framesets for each typing state
-const struct frame_set no_caps[] = {
+static const struct frame_set no_caps[] = {
     {.frames = idle_no_caps, .size = sizeof(idle_no_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_SLOW},
     {.frames = slow_no_caps, .size = sizeof(slow_no_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_SLOW},
     {.frames = med_no_caps,  .size = sizeof(med_no_caps) / sizeof(char*),  .frame_len = FRAME_LENGTH_MED},
     {.frames = fast_no_caps, .size = sizeof(fast_no_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_FAST}
 };
 
-const struct frame_set caps[] = {
+static const struct frame_set caps[] = {
     {.frames = idle_caps, .size = sizeof(idle_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_SLOW},
     {.frames = slow_caps, .size = sizeof(slow_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_SLOW},
     {.frames = med_caps,  .size = sizeof(med_caps) / sizeof(char*),  .frame_len = FRAME_LENGTH_MED},
     {.frames = fast_caps, .size = sizeof(fast_caps) / sizeof(char*), .frame_len = FRAME_LENGTH_FAST}
 };
 
-const struct frame_set* frame_sets[] = {no_caps, caps};
+static const struct frame_set* frame_sets[] = {no_caps, caps};
 
 static uint8_t curr_frame_index = 0;
 static uint8_t frame_set_index = 0;
 
 static uint8_t curr_wpm = 0;
 static led_t led_usb_state;
+
+// Funcs
+void render_wpm();
+void render_bongocat();
 
 #endif

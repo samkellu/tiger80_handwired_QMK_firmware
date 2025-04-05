@@ -24,7 +24,7 @@ static led_t led_usb_state = {1};
 // static uint8_t curr_wpm = 0;
 
 
-int oled_write_pixel(int, int, int);
+int oled_write_pixel(int, int, bool);
 int timer_read();
 int timer_elapsed();
 uint32_t timer_elapsed32();

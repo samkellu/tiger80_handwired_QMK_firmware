@@ -11,6 +11,10 @@
 static int screen_mode = DOOM;
 controls doom_inputs = {0, 0, 0, 0, 0};
 
+SDL_Window* window;
+SDL_Event event;
+SDL_Renderer* renderer;
+
 int initSDL(SDL_Window** window, SDL_Renderer** renderer)
 {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) 
@@ -40,18 +44,31 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
     return 1;
 }
 
-int oled_write_pixel(int, int, int)
+int oled_write_pixel(int x, int y, bool white)
 {
+    if (white) {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    }
+    else
+    {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    }
+
+    SDL_RenderDrawPoint(renderer, x, y);
     return 1;
 }
 
 int timer_read() {
     struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC_RAW , & t); // change CLOCK_MONOTONIC_RAW to CLOCK_MONOTONIC on non linux computers
+    clock_gettime(CLOCK_MONOTONIC_RAW, &t); // change CLOCK_MONOTONIC_RAW to CLOCK_MONOTONIC on non linux computers
     return t.tv_sec * 1000 + (t.tv_nsec + 500000) / 1000000;
 }
 
 uint32_t timer_elapsed32() {
+    return timer_read();
+}
+
+int timer_elapsed() {
     return timer_read();
 }
 
@@ -68,8 +85,15 @@ int oled_write_P(const char* str, int smth) {
     return oled_write(str, smth);
 }
 
+int oled_write_raw_P(const char* c, size_t n)
+{
+    oled_write(c, n);
+    return 1;
+}
+
 int oled_clear()
 {
+    SDL_RenderClear(renderer);
     return 1;
 }
 
@@ -96,14 +120,11 @@ uint8_t pgm_read_byte(const void* addr)
     return *(uint8_t*) addr;
 }
 
-uint32_t frame_time = 0;
+
+uint32_t ft = 0;
 
 int main()
 {
-    SDL_Window* window;
-    SDL_Event event;
-    SDL_Renderer* renderer;
-
     if (!initSDL(&window, &renderer)) 
     {
         printf("Failed to initialise SDL!\n");
@@ -149,9 +170,9 @@ int main()
                 break;
     
             case DOOM:
-                if (timer_elapsed32(frame_time) > FRAME_TIME_MILLI) {
+                if (timer_elapsed32(ft) > FRAME_TIME_MILLI) {
                     doom_update(doom_inputs);
-                    frame_time = timer_read();
+                    ft = timer_read();
                 }
                 break;
             
