@@ -35,6 +35,6 @@ int oled_write_raw_P(const char*, size_t);
 int oled_clear();
 int get_current_wpm();
 int host_keyboard_led_state();
-char* get_u8_str(uint8_t, char);
-char* get_u16_str(uint16_t, char);
+const char* get_u8_str(uint8_t, char);
+const char* get_u16_str(uint16_t, char);
 uint8_t pgm_read_byte(const void*);

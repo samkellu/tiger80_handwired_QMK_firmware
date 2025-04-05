@@ -436,8 +436,6 @@ void check_line(int x, int half_length, bool phase) {
     int upper = WALL_OFFSET + half_length;
 
     for (int i = lower; i < upper; i+=2) {
-        if (i > UI_HEIGHT) break;
-
         if (phase) {
             if (i == lower || (i >= lower + half_length && i <= lower + 3 * half_length / 2)) {
                 i += half_length / 2;
@@ -447,7 +445,9 @@ void check_line(int x, int half_length, bool phase) {
                 i += half_length / 2;
             }
         }
-
+        
+        if (i > UI_HEIGHT) break;
+        
         oled_write_pixel(x, i, 1);
     }
 

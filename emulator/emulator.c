@@ -47,7 +47,7 @@ int oled_write_pixel(int x, int y, bool white)
 {
     if (white) {
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        
+
     } else {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     }
@@ -107,12 +107,16 @@ int host_keyboard_led_state()
     return 1;
 }
 
-char* get_u8_str(uint8_t val, char pad) {
-    return "test";
+const char* get_u8_str(uint8_t val, char pad) {
+    static char buf[4] = {0};
+    snprintf(buf, 3, "%d", val);
+    return buf;
 };
 
-char* get_u16_str(uint16_t val, char pad) {
-    return "test";
+const char* get_u16_str(uint16_t val, char pad) {
+    static char buf[6] = {0};
+    snprintf(buf, 5, "%d", val);
+    return buf;
 };
 
 uint8_t pgm_read_byte(const void* addr)
