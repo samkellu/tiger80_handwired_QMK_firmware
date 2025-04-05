@@ -9,7 +9,6 @@
 #include "../bongo80/bongo80.h"
 
 static int screen_mode = DOOM;
-controls doom_inputs = {0, 0, 0, 0, 0};
 
 SDL_Window* window;
 SDL_Event event;
@@ -172,6 +171,7 @@ int main()
             case DOOM:
                 if (timer_elapsed32(ft) > FRAME_TIME_MILLI) {
                     doom_update(doom_inputs);
+                    SDL_RenderPresent(renderer);
                     ft = timer_read();
                 }
                 break;
