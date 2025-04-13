@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-// #include "../bongo80/doom.h"
-// #include "../bongo80/bongo80.h"
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -15,6 +13,7 @@
 #define PROGMEM
 #define QK_KB_0 1
 #define keyrecord_t
+
 
 typedef struct led_t {
     int caps_lock;

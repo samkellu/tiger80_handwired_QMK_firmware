@@ -4,9 +4,9 @@
 
 #include <SDL2/SDL.h>
 #include <time.h>
-#include "emulator.h"
 #include "../bongo80/doom.h"
 #include "../bongo80/bongo80.h"
+#include "emulator.h"
 
 static int screen_mode = DOOM;
 

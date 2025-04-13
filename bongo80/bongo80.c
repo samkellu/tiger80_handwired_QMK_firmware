@@ -711,6 +711,11 @@ void doom_update(controls c) {
             segment wall = walls[i];
             bresenham_line(wall, offset);
         }
+
+        bresenham_line(walls[0], offset+1);
+        bresenham_line(walls[0], offset+2);
+        bresenham_line(walls[0], offset-1);
+        bresenham_line(walls[0], offset-2);
         
         oled_write_pixel(p.x + offset, p.y + offset, 1);
         

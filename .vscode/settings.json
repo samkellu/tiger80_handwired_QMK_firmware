@@ -3,6 +3,7 @@
         "doom.h": "c",
         "bongo80.h": "c",
         "sdl.h": "c",
-        "random": "cpp"
+        "random": "cpp",
+        "emulator.h": "c"
     }
 }
