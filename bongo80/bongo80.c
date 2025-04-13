@@ -318,7 +318,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
                     break;
                 
                 case DOOR:
-                    vertical_line(i, info.length, 1, 2);
+                    vertical_line(i, info.length, 1, 1);
                     break;
 
             }
@@ -380,13 +380,13 @@ void render_map(vec2 p, int pa, bool is_shooting) {
             }
             
             vertical_line(j, SCREEN_HEIGHT, 0, 1);
-            if (j % 2 == 0) {
-                if (info.is_checked) {
-                    check_line(j, info.length, info.phase);
-                
-                } else {
-                    vertical_line(j, info.length, 1, 2);
-                }
+            if (j % 2 != 0) continue;
+
+            if (info.is_checked) {
+                check_line(j, info.length, info.phase);
+            
+            } else {
+                vertical_line(j, info.length, 1, 2);
             }
         }
     }
@@ -582,7 +582,7 @@ void doom_setup(void) {
     srand(game_time);
 
     // Initializes the map and door
-    walls = (segment*) malloc(sizeof(segment) * 5);
+    walls = (segment*) malloc(sizeof(segment) * 6);
     num_walls = 1;
     walls[num_walls++] = (segment) {{0, MAP_HEIGHT}, {MAP_WIDTH, MAP_HEIGHT}, CHECK};
     walls[num_walls++] = (segment) {{MAP_WIDTH, MAP_HEIGHT}, {MAP_WIDTH, 0}, CHECK};
@@ -591,25 +591,31 @@ void doom_setup(void) {
 
     int wall_door = 1 + rand() % 4;
     segment door_wall = walls[wall_door];
-    float wall_len = inv_sqrt(dist2(door_wall.v, door_wall.u));
+    float wall_len = sqrtf(dist2(door_wall.v, door_wall.u));
     float door_width_perc = DOOR_WIDTH / wall_len;
-    float wall_placement_perc = (rand() % (int) (100 - door_width_perc)) / (float) 100;
+    float door_placement_perc = (rand() % (int) (100 - door_width_perc)) / (float) 100;
     float dx = door_wall.v.x - door_wall.u.x;
     float dy = door_wall.v.y - door_wall.u.y;
 
     vec2 door_start = {
-        door_wall.u.x + (dx * wall_placement_perc),
-        door_wall.u.y = door_wall.u.y + (dy * wall_placement_perc)
+        door_wall.u.x + (dx * door_placement_perc),
+        door_wall.u.y + (dy * door_placement_perc)
     };
 
     vec2 door_end = {
-        door_wall.u.x + (dx * (wall_placement_perc + door_width_perc)),
-        door_wall.v.y = door_wall.u.y + (dy * (wall_placement_perc + door_width_perc))
+        door_wall.u.x + (dx * (door_placement_perc + door_width_perc)),
+        door_wall.u.y + (dy * (door_placement_perc + door_width_perc))
     };
 
     walls[0] = (segment) {door_start, door_end, DOOR};
-    // walls[num_walls++] = (segment) {door_end,{door_wall.v.x, door_wall.v.y}, CHECK};
+    walls[num_walls++] = (segment) {door_end, {door_wall.v.x, door_wall.v.y}, CHECK};
     door_wall.v = door_start;
+
+    printf("((%f %f) (%f, %f)), ((%f, %f), (%f, %f)), ((%f, %f), (%f, %f))\n",
+         door_wall.u.x, door_wall.u.y, door_wall.v.x, door_wall.v.y, 
+         walls[0].u.x, walls[0].u.y, walls[0].v.x, walls[0].v.y, 
+         walls[num_walls-1].u.x, walls[num_walls-1].u.y, walls[num_walls-1].v.x, walls[num_walls-1].v.y);
+         
 
     walls = bsp_wallgen(walls, &num_walls, 0, MAP_WIDTH, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
 
@@ -632,6 +638,41 @@ void doom_dispose(void) {
     free(walls);
     initialized = false;
 }
+
+#ifdef RENDER_DEBUG
+void bresenham_line(segment s, int offset)
+{
+    int x0 = (int) s.u.x + offset,
+        x1 = (int) s.v.x + offset,
+        y0 = (int) s.u.y + offset,
+        y1 = (int) s.v.y + offset;
+
+    int dx =  abs (x1 - x0),
+        sx = x0 < x1 ? 1 : -1;
+
+    int dy = -abs (y1 - y0),
+        sy = y0 < y1 ? 1 : -1;
+
+    int err = dx + dy,
+        e2;
+   
+    // Bresenham from https://gist.github.com/bert/1085538
+    for (;;) {
+        oled_write_pixel(x0, y0, 1);
+        if (x0 == x1 && y0 == y1) break;
+        e2 = 2 * err;
+        if (e2 >= dy) { 
+            err += dy; 
+            x0 += sx;
+        }
+
+        if (e2 <= dx) { 
+            err += dx;
+            y0 += sy;
+        }
+    }
+}
+#endif
 
 void doom_update(controls c) {
 
@@ -656,6 +697,49 @@ void doom_update(controls c) {
         if (!collision_detection(pnx, false)) p.x = pnx.x;
         if (!collision_detection(pny, false)) p.y = pny.y;
     }
+    
+    enemies[0].anim_state = timer_elapsed32(game_time) % 2000 < 1000 ? 0 : 1;
+    enemies[1].anim_state = enemies[0].anim_state;
+    if (timer_elapsed(game_time) % 200 < 100)
+        enemy_update();
+
+    #ifdef RENDER_DEBUG
+
+        int offset = 50;
+        for (int i = 0; i < num_walls; i++)
+        {
+            segment wall = walls[i];
+            bresenham_line(wall, offset);
+        }
+        
+        oled_write_pixel(p.x + offset, p.y + offset, 1);
+        
+        segment cone_l = {p, {0, 0}};
+        float half_fov = FOV / 2;
+        cone_l.v.x = p.x + DOV * cosf((pa - half_fov) * PI / 180);
+        cone_l.v.y = p.y + DOV * sinf((pa - half_fov) * PI / 180);
+        bresenham_line(cone_l, offset);
+        
+        segment cone_r = {p, {0, 0}};
+        cone_r.v.x = p.x + DOV * cosf((pa + half_fov) * PI / 180);
+        cone_r.v.y = p.y + DOV * sinf((pa + half_fov) * PI / 180);
+        bresenham_line(cone_r, offset);
+        
+        for (int i = 0; i < NUM_ENEMIES; i++)
+        {
+            enemy e = enemies[i];
+            oled_write_pixel(e.pos.x + offset, e.pos.y + offset, 1);
+            oled_write_pixel(e.pos.x + offset - 1, e.pos.y + offset, 1);
+            oled_write_pixel(e.pos.x + offset + 1, e.pos.y + offset, 1);
+            oled_write_pixel(e.pos.x + offset, e.pos.y + offset - 1, 1);
+            oled_write_pixel(e.pos.x + offset, e.pos.y + offset + 1, 1);
+        }
+        
+        return;
+    #endif
+        
+    render_map(p, pa, shot_timer > 0 && c.shoot);
+    draw_gun(c.u, shot_timer > 0);
 
     for (int i = 0; i < SCREEN_WIDTH; i++) {
         oled_write_pixel(i, UI_HEIGHT, 1);
@@ -680,14 +764,6 @@ void doom_update(controls c) {
     // TODO: DEBUG
     printf("(%lf, %lf) (%lf, %lf)\n", walls[0].u.x,  walls[0].u.y,  walls[0].v.x,  walls[0].v.y);
     printf("Player: (%lf, %lf)\n", p.x,  p.y);
-
-    enemies[0].anim_state = timer_elapsed32(game_time) % 2000 < 1000 ? 0 : 1;
-    enemies[1].anim_state = enemies[0].anim_state;
-    if (timer_elapsed(game_time) % 200 < 100)
-        enemy_update();
-
-    render_map(p, pa, shot_timer > 0 && c.shoot);
-    draw_gun(c.u, shot_timer > 0);
 }
 
 const char* get_u32_str(uint32_t value, char pad) {

@@ -163,6 +163,9 @@ int main()
 
                     else if (event.key.keysym.sym == SDLK_SPACE)
                         doom_inputs.shoot = true;
+
+                    else if (event.key.keysym.sym == SDLK_r)
+                        doom_setup();
                     
                     break;
 
