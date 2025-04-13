@@ -31,7 +31,13 @@
 #define SCREEN_ADDRESS        0x3C
 
 #define PI                    3.14159
-#define START_TIME_MILLI      4000
+
+#ifdef USE_EMULATOR
+  #define START_TIME_MILLI      1000
+#else
+  #define START_TIME_MILLI      4000
+#endif
+
 #define FRAME_TIME_MILLI      20
 
 #define WALL_COLLISION_DIST   5

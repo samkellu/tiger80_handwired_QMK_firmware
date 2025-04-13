@@ -172,27 +172,27 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
 
     // Split on longest axis
     if (r - l >= b - t) {
-        if (r-l < MIN_ROOM_WIDTH) return walls;
+        if (r - l < MIN_ROOM_WIDTH) return walls;
         
-        int split = rand() % r;
-        if (split - l > MIN_ROOM_WIDTH) {
-            walls = bsp_wallgen(walls, num_walls, l, split, t, b, depth - 1);
+        int split = rand() % (r - l);
+        if (split > MIN_ROOM_WIDTH) {
+            walls = bsp_wallgen(walls, num_walls, l, l + split, t, b, depth - 1);
         }
 
-        if (r - split > MIN_ROOM_WIDTH) {
-            walls = bsp_wallgen(walls, num_walls, split, r, t, b, depth - 1);
+        if (r - l - split > MIN_ROOM_WIDTH) {
+            walls = bsp_wallgen(walls, num_walls, l + split, r, t, b, depth - 1);
         }
 
     } else {
         if (b-t < MIN_ROOM_WIDTH) return walls;
 
-        int split = rand() % b;
-        if (split - t > MIN_ROOM_WIDTH) {
-            walls = bsp_wallgen(walls, num_walls, l, r, t, split, depth - 1);
+        int split = rand() % (t - b);
+        if (split > MIN_ROOM_WIDTH) {
+            walls = bsp_wallgen(walls, num_walls, l, r, t, t + split, depth - 1);
         }
 
-        if (b - split > MIN_ROOM_WIDTH) {
-            walls = bsp_wallgen(walls, num_walls, l, r, split, b, depth - 1);
+        if (b - t - split > MIN_ROOM_WIDTH) {
+            walls = bsp_wallgen(walls, num_walls, l, r, t + split, b, depth - 1);
         }
     }
 

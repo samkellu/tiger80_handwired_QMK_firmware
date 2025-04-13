@@ -70,7 +70,7 @@ int timer_elapsed() {
     return timer_read();
 }
 
-int oled_set_cursor(int, int)
+int oled_set_cursor(int x, int y)
 {
     return 1;
 }
