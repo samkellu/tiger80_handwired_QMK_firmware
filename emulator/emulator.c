@@ -25,7 +25,8 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
     *window = SDL_CreateWindow("QMK Emulator", 
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
-                              512, 512, 0);
+                              EMULATOR_SCR_WIDTH,
+                              EMULATOR_SCR_HEIGHT, 0);
 
     if (!*window)
     {

@@ -14,6 +14,14 @@
 #define QK_KB_0 1
 #define keyrecord_t
 
+#ifdef RENDER_DEBUG
+    #define EMULATOR_SCR_WIDTH 700
+    #define EMULATOR_SCR_HEIGHT 700
+#else
+    #define EMULATOR_SCR_WIDTH 128  
+    #define EMULATOR_SCR_HEIGHT 64
+#endif
+
 
 typedef struct led_t {
     int caps_lock;

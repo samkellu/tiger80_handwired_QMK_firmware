@@ -116,7 +116,13 @@ bool collision_detection(vec2 v, bool is_enemy) {
     for (int i = 0; i < num_walls; i++) {
         segment w = walls[i];
         float d2 = point_ray_dist2(v, w);
-        if (d2 < collision_dist2) return true;
+        if (d2 < collision_dist2) {
+            if (i == 0 && score == 5) {
+                doom_setup();
+            }
+
+           return true;
+        }
     }
 
     if (is_enemy) return false;
@@ -167,8 +173,16 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
             CHECK
         };
 
+        // connect each valid split with corridor
+        // door + four sides + door_wall + first room
+        if (*num_walls > 10) {
+            walls[*num_walls - 5].v = walls[*num_walls - 1].u;
+            walls[*num_walls - 6].v = walls[*num_walls - 1].v;
+        }
+
         return walls;
     }
+    
 
     // Split on longest axis
     if (r - l >= b - t) {
@@ -195,6 +209,7 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
             walls = bsp_wallgen(walls, num_walls, l, r, t + split, b, depth - 1);
         }
     }
+
 
     return walls;
 }
@@ -556,7 +571,11 @@ vec2 get_valid_spawn(void) {
 
     int col_dist2 = WALL_COLLISION_DIST * WALL_COLLISION_DIST;
     while (1) {
-        vec2 new_pos = {rand() % MAP_WIDTH, rand() % MAP_HEIGHT};
+        vec2 new_pos = {
+            col_dist2 + (rand() % (MAP_WIDTH - col_dist2)),
+            col_dist2 + (rand() % (MAP_HEIGHT - col_dist2))
+        };
+
         bool valid = true;
         for (int i = 6; i < num_walls; i += 4) {
             vec2 lt = walls[i+1].u;
@@ -610,12 +629,6 @@ void doom_setup(void) {
     // Truncate wall to remove door hole
     walls[num_walls++] = (segment) {door_end, {door_wall->v.x, door_wall->v.y}, CHECK};
     door_wall->v = door_start;
-
-    printf("((%f %f) (%f, %f)), ((%f, %f), (%f, %f)), ((%f, %f), (%f, %f))\n",
-         door_wall->u.x, door_wall->u.y, door_wall->v.x, door_wall->v.y, 
-         walls[0].u.x, walls[0].u.y, walls[0].v.x, walls[0].v.y, 
-         walls[num_walls-1].u.x, walls[num_walls-1].u.y, walls[num_walls-1].v.x, walls[num_walls-1].v.y);
-         
 
     walls = bsp_wallgen(walls, &num_walls, 0, MAP_WIDTH, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
 
@@ -672,6 +685,45 @@ void bresenham_line(segment s, int offset)
         }
     }
 }
+
+void render_debug() {
+
+    int offset = 50;
+    for (int i = 0; i < num_walls; i++)
+    {
+        segment wall = walls[i];
+        bresenham_line(wall, offset);
+    }
+
+    bresenham_line(walls[0], offset+1);
+    bresenham_line(walls[0], offset+2);
+    bresenham_line(walls[0], offset-1);
+    bresenham_line(walls[0], offset-2);
+    
+    oled_write_pixel(p.x + offset, p.y + offset, 1);
+    
+    segment cone_l = {p, {0, 0}};
+    float half_fov = FOV / 2;
+    cone_l.v.x = p.x + DOV * cosf((pa - half_fov) * PI / 180);
+    cone_l.v.y = p.y + DOV * sinf((pa - half_fov) * PI / 180);
+    bresenham_line(cone_l, offset);
+    
+    segment cone_r = {p, {0, 0}};
+    cone_r.v.x = p.x + DOV * cosf((pa + half_fov) * PI / 180);
+    cone_r.v.y = p.y + DOV * sinf((pa + half_fov) * PI / 180);
+    bresenham_line(cone_r, offset);
+    
+    for (int i = 0; i < NUM_ENEMIES; i++)
+    {
+        enemy e = enemies[i];
+        oled_write_pixel(e.pos.x + offset, e.pos.y + offset, 1);
+        oled_write_pixel(e.pos.x + offset - 1, e.pos.y + offset, 1);
+        oled_write_pixel(e.pos.x + offset + 1, e.pos.y + offset, 1);
+        oled_write_pixel(e.pos.x + offset, e.pos.y + offset - 1, 1);
+        oled_write_pixel(e.pos.x + offset, e.pos.y + offset + 1, 1);
+    }
+}
+        
 #endif
 
 void doom_update(controls c) {
@@ -704,42 +756,7 @@ void doom_update(controls c) {
         enemy_update();
 
     #ifdef RENDER_DEBUG
-
-        int offset = 50;
-        for (int i = 0; i < num_walls; i++)
-        {
-            segment wall = walls[i];
-            bresenham_line(wall, offset);
-        }
-
-        bresenham_line(walls[0], offset+1);
-        bresenham_line(walls[0], offset+2);
-        bresenham_line(walls[0], offset-1);
-        bresenham_line(walls[0], offset-2);
-        
-        oled_write_pixel(p.x + offset, p.y + offset, 1);
-        
-        segment cone_l = {p, {0, 0}};
-        float half_fov = FOV / 2;
-        cone_l.v.x = p.x + DOV * cosf((pa - half_fov) * PI / 180);
-        cone_l.v.y = p.y + DOV * sinf((pa - half_fov) * PI / 180);
-        bresenham_line(cone_l, offset);
-        
-        segment cone_r = {p, {0, 0}};
-        cone_r.v.x = p.x + DOV * cosf((pa + half_fov) * PI / 180);
-        cone_r.v.y = p.y + DOV * sinf((pa + half_fov) * PI / 180);
-        bresenham_line(cone_r, offset);
-        
-        for (int i = 0; i < NUM_ENEMIES; i++)
-        {
-            enemy e = enemies[i];
-            oled_write_pixel(e.pos.x + offset, e.pos.y + offset, 1);
-            oled_write_pixel(e.pos.x + offset - 1, e.pos.y + offset, 1);
-            oled_write_pixel(e.pos.x + offset + 1, e.pos.y + offset, 1);
-            oled_write_pixel(e.pos.x + offset, e.pos.y + offset - 1, 1);
-            oled_write_pixel(e.pos.x + offset, e.pos.y + offset + 1, 1);
-        }
-        
+        render_debug();
         return;
     #endif
         
@@ -750,12 +767,6 @@ void doom_update(controls c) {
         oled_write_pixel(i, UI_HEIGHT, 1);
     }
 
-    oled_set_cursor(0, 0);
-    oled_write(get_u16_str(walls[0].u.x, ' '), false);
-    oled_write(get_u16_str(walls[0].u.y, ' '), false);
-    oled_write(get_u16_str(walls[0].v.x, ' '), false);
-    oled_write(get_u16_str(walls[0].v.y, ' '), false);
-
     // Displays the current game time
     oled_set_cursor(1, 7);
     oled_write_P(PSTR("TIME: "), false);
@@ -765,10 +776,6 @@ void doom_update(controls c) {
     oled_set_cursor(12, 7);
     oled_write_P(PSTR("SCORE:"), false);
     oled_write(get_u16_str(score, ' '), false);
-
-    // TODO: DEBUG
-    printf("(%lf, %lf) (%lf, %lf)\n", walls[0].u.x,  walls[0].u.y,  walls[0].v.x,  walls[0].v.y);
-    printf("Player: (%lf, %lf)\n", p.x,  p.y);
 }
 
 const char* get_u32_str(uint32_t value, char pad) {

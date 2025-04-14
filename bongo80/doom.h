@@ -48,8 +48,8 @@
 #define GUN_Y                 UI_HEIGHT
 #define MIN_ROOM_WIDTH        20
 #define MAP_GEN_REC_DEPTH     4
-#define MAP_WIDTH             300
-#define MAP_HEIGHT            300
+#define MAP_WIDTH             400
+#define MAP_HEIGHT            400
 #define DOOR_WIDTH            20
 #define DOOR_IDX              0
 
