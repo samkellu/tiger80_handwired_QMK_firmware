@@ -25,7 +25,7 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
     *window = SDL_CreateWindow("QMK Emulator", 
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
-                              128, 64, 0);
+                              512, 512, 0);
 
     if (!*window)
     {
@@ -137,7 +137,7 @@ int main()
 
     screen_mode = DOOM;
     doom_setup();
-    controls doom_inputs;
+    controls doom_inputs = { 0, 0, 0, 0, 0 };
 
     while (1)
     {

@@ -589,30 +589,30 @@ void doom_setup(void) {
     walls[num_walls++] = (segment) {{MAP_WIDTH, 0}, {0, 0}, CHECK};
     walls[num_walls++] = (segment) {{0, 0}, {0, MAP_HEIGHT}, CHECK};
 
-    int wall_door = 1 + rand() % 4;
-    segment door_wall = walls[wall_door];
-    float wall_len = sqrtf(dist2(door_wall.v, door_wall.u));
+    segment* door_wall = &walls[1 + rand() % 4];
+    float wall_len = sqrtf(dist2(door_wall->v, door_wall->u));
     float door_width_perc = DOOR_WIDTH / wall_len;
     float door_placement_perc = (rand() % (int) (100 - door_width_perc)) / (float) 100;
-    float dx = door_wall.v.x - door_wall.u.x;
-    float dy = door_wall.v.y - door_wall.u.y;
+    float dx = door_wall->v.x - door_wall->u.x;
+    float dy = door_wall->v.y - door_wall->u.y;
 
     vec2 door_start = {
-        door_wall.u.x + (dx * door_placement_perc),
-        door_wall.u.y + (dy * door_placement_perc)
+        door_wall->u.x + (dx * door_placement_perc),
+        door_wall->u.y + (dy * door_placement_perc)
     };
 
     vec2 door_end = {
-        door_wall.u.x + (dx * (door_placement_perc + door_width_perc)),
-        door_wall.u.y + (dy * (door_placement_perc + door_width_perc))
+        door_wall->u.x + (dx * (door_placement_perc + door_width_perc)),
+        door_wall->u.y + (dy * (door_placement_perc + door_width_perc))
     };
 
     walls[0] = (segment) {door_start, door_end, DOOR};
-    walls[num_walls++] = (segment) {door_end, {door_wall.v.x, door_wall.v.y}, CHECK};
-    door_wall.v = door_start;
+    // Truncate wall to remove door hole
+    walls[num_walls++] = (segment) {door_end, {door_wall->v.x, door_wall->v.y}, CHECK};
+    door_wall->v = door_start;
 
     printf("((%f %f) (%f, %f)), ((%f, %f), (%f, %f)), ((%f, %f), (%f, %f))\n",
-         door_wall.u.x, door_wall.u.y, door_wall.v.x, door_wall.v.y, 
+         door_wall->u.x, door_wall->u.y, door_wall->v.x, door_wall->v.y, 
          walls[0].u.x, walls[0].u.y, walls[0].v.x, walls[0].v.y, 
          walls[num_walls-1].u.x, walls[num_walls-1].u.y, walls[num_walls-1].v.x, walls[num_walls-1].v.y);
          
