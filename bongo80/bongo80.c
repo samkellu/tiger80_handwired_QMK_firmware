@@ -117,7 +117,7 @@ bool collision_detection(vec2 v, bool is_enemy) {
         segment w = walls[i];
         float d2 = point_ray_dist2(v, w);
         if (d2 < collision_dist2) {
-            if (i == 0 && score == 5) {
+            if (i == 0 && score >= 5) {
                 doom_setup();
             }
 
@@ -172,13 +172,6 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
             {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
             CHECK
         };
-
-        // connect each valid split with corridor
-        // door + four sides + door_wall + first room
-        if (*num_walls > 10) {
-            walls[*num_walls - 5].v = walls[*num_walls - 1].u;
-            walls[*num_walls - 6].v = walls[*num_walls - 1].v;
-        }
 
         return walls;
     }
@@ -631,6 +624,26 @@ void doom_setup(void) {
     door_wall->v = door_start;
 
     walls = bsp_wallgen(walls, &num_walls, 0, MAP_WIDTH, 0, MAP_HEIGHT, MAP_GEN_REC_DEPTH);
+
+    vec2 prev_avg;
+    int original_num_walls = num_walls;
+    for (int i = 6; i < original_num_walls; i += 4) {
+        segment a = walls[i];
+        segment b = walls[i+2];
+
+        vec2 avg;
+        avg.x = (a.u.x + a.v.x + b.u.x + b.v.x) / 4;
+        avg.y = (a.u.y + a.v.y + b.u.y + b.v.y) / 4;
+
+        if (i == 6) {
+            prev_avg = avg;
+            continue;
+        }
+
+        walls = realloc(walls, sizeof(segment) * (num_walls + 1));
+        walls[num_walls++] = (segment) { avg, prev_avg, CHECK };
+        prev_avg = avg;
+    }
 
     // Initializes the list of possible enemy spawn locations
     for (int i = 0; i < NUM_ENEMIES; i++) {
