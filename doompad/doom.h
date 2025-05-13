@@ -335,7 +335,8 @@ static const sprite imp_sprite_hurt_2 = {
 
 static const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
-static char frame_buffer[(SCREEN_WIDTH * (SCREEN_HEIGHT - UI_HEIGHT)) / sizeof(char)];
+#define FRAME_BUFFER_LENGTH (SCREEN_WIDTH * (SCREEN_HEIGHT - UI_HEIGHT)) / sizeof(char)
+static unsigned char frame_buffer[FRAME_BUFFER_LENGTH];
 
 float pow2(float x);
 
@@ -384,5 +385,7 @@ vec2 get_valid_spawn(void);
 const char* get_u32_str(uint32_t value, char pad);
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);
+
+void write_pixel(int x, int y, bool white);
 
 #endif

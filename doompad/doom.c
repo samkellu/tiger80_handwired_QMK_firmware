@@ -199,13 +199,36 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
 // =================== BUFFER =================== //
 
 
-// void write_pixel(int x, int y, bool white)
-// {
-//     if (x < 0 || x >= SCREEN_WIDTH) return;
-//     if (y < 0 || y >= SCREEN_HEIGHT - UI_HEIGHT) return;
+void write_pixel(int x, int y, bool white)
+{
+    if (x < 0 || x >= SCREEN_WIDTH) return;
+    if (y < 0 || y >= SCREEN_HEIGHT - UI_HEIGHT) return;
 
-//     frame_buffer << (x + (y * SCREEN_WIDTH)) |= 1;
-// }
+    int bit_offset = x + (y * SCREEN_WIDTH);
+    if (white) {
+        frame_buffer[FRAME_BUFFER_LENGTH] &= ~(1 << (bit_offset % sizeof(char)));
+    } else {
+        frame_buffer[FRAME_BUFFER_LENGTH] |= 1 << (bit_offset % sizeof(char));
+    }
+}
+
+void clear_frame_buffer() {
+    memset(frame_buffer, 0, FRAME_BUFFER_LENGTH);
+}
+
+void print_frame_buffer() {
+    int idx = 0;
+    for (int y = 0; y < SCREEN_HEIGHT - UI_HEIGHT; y++)
+    {
+        for (int x = 0; x < SCREEN_WIDTH; x++)
+        {
+            int val = frame_buffer[idx / sizeof(char)] & 1 << (idx % sizeof(char));
+            printf("%d", val);
+            idx++;
+        }
+        printf("\n");
+    }
+}
 
 
 // =================== GRAPHICS =================== //
@@ -745,7 +768,8 @@ void doom_update(controls c) {
     int time_elapsed = timer_elapsed32(last_frame);
     if (time_elapsed < FRAME_TIME_MILLI) return;
     
-    oled_clear();
+    // oled_clear();
+    clear_frame_buffer();
     if (shot_timer > 0) shot_timer--;
     if (c.shoot && shot_timer == 0) shot_timer = 2;
 
@@ -799,6 +823,7 @@ void doom_update(controls c) {
     oled_write("FPS:", false);
     oled_write(get_u8_str(fpms, ' '), false);
 
+    print_frame_buffer();
     last_frame = timer_read();
 }
 
