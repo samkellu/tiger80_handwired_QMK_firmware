@@ -1,0 +1,3 @@
+ANALOG_DRIVER_REQUIRED = yes
+OLED_DRIVER = ssd1306
+SRC += doom.c bongo.c
