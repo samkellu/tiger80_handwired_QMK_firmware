@@ -25,7 +25,7 @@ bool has_key = false;
 
 // Game management information
 uint32_t game_time;
-uint32_t frame_time;
+uint32_t last_frame = 0;
 uint8_t score;
 bool initialized = false;
 
@@ -393,8 +393,9 @@ void draw_gun(bool moving, bool show_flash) {
 
     // Walking animation
     if (moving) {
-        gun_x = GUN_X + 8 * sin((double) timer_elapsed32(game_time) * 0.005);
-        gun_y = GUN_Y + 3 + 3 * cos((double) timer_elapsed32(game_time) * 0.01);
+        int time_elapsed = timer_elapsed32(game_time);
+        gun_x = GUN_X + 8 * sin((float) time_elapsed * 0.005);
+        gun_y = GUN_Y + 3 + 3 * cos((float) time_elapsed * 0.01);
     
     // Slowly move gun back to centre when not moving
     } else {
@@ -641,6 +642,7 @@ void doom_setup(void) {
     p = get_valid_spawn();
     pa = 0;
     shot_timer = 0;
+    last_frame = timer_read();
     score = 0;
     has_key = false;
     initialized = true;
@@ -727,18 +729,12 @@ void render_debug() {
 
 void doom_update(controls c) {
 
-    int time_elapsed = timer_elapsed(frame_time);
-    if (!initialized
-        || time_elapsed < START_TIME_MILLI
-        || time_elapsed < FRAME_TIME_MILLI) return;
-
+    if (!initialized || timer_elapsed(game_time) < START_TIME_MILLI) return;
+    
+    int time_elapsed = timer_elapsed32(last_frame);
+    if (time_elapsed < FRAME_TIME_MILLI) return;
+    
     oled_clear();
-    int fpms = 1000 / (float) time_elapsed;
-    oled_set_cursor(0, 0);
-    oled_write("FPS:", false);
-    oled_write(get_u8_str(fpms, ' '), false);
-    frame_time = timer_read();
-
     if (shot_timer > 0) shot_timer--;
     if (c.shoot && shot_timer == 0) shot_timer = 5;
 
@@ -758,13 +754,14 @@ void doom_update(controls c) {
         if (!collision_detection(pny, false)) p.y = pny.y;
     }
     
-    enemies[0].anim_state = timer_elapsed32(game_time) % 2000 < 1000 ? 0 : 1;
+    enemies[0].anim_state = time_elapsed % 2000 < 1000 ? 0 : 1;
     enemies[1].anim_state = enemies[0].anim_state;
-    if (timer_elapsed(game_time) % 200 < 100)
+    if (time_elapsed % 200 < 100)
         enemy_update();
 
     #ifdef RENDER_DEBUG
         render_debug();
+        last_frame = timer_read();
         return;
     #endif
         
@@ -775,15 +772,22 @@ void doom_update(controls c) {
         oled_write_pixel(i, UI_HEIGHT, 1);
     }
 
+    int fpms = 1000 / (float) time_elapsed;
+    oled_set_cursor(0, 0);
+    oled_write("FPS:", false);
+    oled_write(get_u8_str(fpms, ' '), false);
+
     // Displays the current game time
     oled_set_cursor(1, 7);
     oled_write_P(PSTR("TIME: "), false);
-    oled_write(get_u16_str((timer_elapsed(game_time) - START_TIME_MILLI) / 1000, ' '), false);
+    oled_write(get_u32_str((time_elapsed - START_TIME_MILLI) / 1000, ' '), false);
 
     // Displays the players current score
     oled_set_cursor(12, 7);
     oled_write_P(PSTR("SCORE:"), false);
     oled_write(get_u8_str(score, ' '), false);
+
+    last_frame = timer_read();
 }
 
 const char* get_u32_str(uint32_t value, char pad) {
