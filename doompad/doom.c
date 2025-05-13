@@ -25,7 +25,7 @@ bool has_key = false;
 
 // Game management information
 uint32_t game_time;
-uint32_t last_frame = 0;
+uint32_t last_frame;
 uint8_t score;
 bool initialized = false;
 
@@ -192,9 +192,20 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
         }
     }
 
-
     return walls;
 }
+
+
+// =================== BUFFER =================== //
+
+
+// void write_pixel(int x, int y, bool white)
+// {
+//     if (x < 0 || x >= SCREEN_WIDTH) return;
+//     if (y < 0 || y >= SCREEN_HEIGHT - UI_HEIGHT) return;
+
+//     frame_buffer << (x + (y * SCREEN_WIDTH)) |= 1;
+// }
 
 
 // =================== GRAPHICS =================== //
@@ -736,7 +747,7 @@ void doom_update(controls c) {
     
     oled_clear();
     if (shot_timer > 0) shot_timer--;
-    if (c.shoot && shot_timer == 0) shot_timer = 5;
+    if (c.shoot && shot_timer == 0) shot_timer = 2;
 
     if (c.l) {
         pa -= ROTATION_SPEED < 0 ? ROTATION_SPEED + 360 : ROTATION_SPEED;
@@ -771,21 +782,22 @@ void doom_update(controls c) {
     for (int i = 0; i < SCREEN_WIDTH; i++) {
         oled_write_pixel(i, UI_HEIGHT, 1);
     }
-
-    int fpms = 1000 / (float) time_elapsed;
-    oled_set_cursor(0, 0);
-    oled_write("FPS:", false);
-    oled_write(get_u8_str(fpms, ' '), false);
-
+    
     // Displays the current game time
     oled_set_cursor(1, 7);
     oled_write_P(PSTR("TIME: "), false);
     oled_write(get_u32_str((time_elapsed - START_TIME_MILLI) / 1000, ' '), false);
-
+    
     // Displays the players current score
     oled_set_cursor(12, 7);
     oled_write_P(PSTR("SCORE:"), false);
     oled_write(get_u8_str(score, ' '), false);
+    
+    time_elapsed = timer_elapsed32(last_frame);
+    int fpms = 1000 / (float) time_elapsed;
+    oled_set_cursor(0, 0);
+    oled_write("FPS:", false);
+    oled_write(get_u8_str(fpms, ' '), false);
 
     last_frame = timer_read();
 }

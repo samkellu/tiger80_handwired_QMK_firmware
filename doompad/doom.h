@@ -16,7 +16,14 @@
 
 #pragma once
 
-#include "quantum.h"
+#ifdef USE_EMULATOR
+  #include "../emulator/emulator.h"
+#else
+  #include "quantum.h"
+#endif
+
+#ifndef DOOM_INCL
+#define DOOM_INCL
 
 #define SCREEN_WIDTH          128
 #define SCREEN_HEIGHT         64
@@ -25,7 +32,7 @@
 
 #define PI                    3.14159
 #define START_TIME_MILLI      4000
-#define TARGET_FPS            32
+#define TARGET_FPS            36
 #define FRAME_TIME_MILLI      1000 / TARGET_FPS
 
 #define WALL_COLLISION_DIST   5
@@ -100,7 +107,7 @@ typedef struct depth_buf_info {
 } depth_buf_info;
 
 #define NUM_ENEMIES 2
-enemy enemies[2];
+static enemy enemies[NUM_ENEMIES];
 
 // Doom logo intro screen, stored in PROGMEM to save global section space
 #define LOGO_WIDTH 128
@@ -328,6 +335,8 @@ static const sprite imp_sprite_hurt_2 = {
 
 static const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
+static char frame_buffer[(SCREEN_WIDTH * (SCREEN_HEIGHT - UI_HEIGHT)) / sizeof(char)];
+
 float pow2(float x);
 
 float dot(vec2 v, vec2 u);
@@ -375,3 +384,5 @@ vec2 get_valid_spawn(void);
 const char* get_u32_str(uint32_t value, char pad);
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);
+
+#endif

@@ -16,7 +16,14 @@
 
 #pragma once
 
-#include "quantum.h"
+#ifdef USE_EMULATOR
+  #include "../emulator/emulator.h"
+#else
+  #include "quantum.h"
+#endif
+
+#ifndef BONGO_INCL
+#define BONGO_INCL
 
 // Time per frame in millis
 #define FRAME_LENGTH_SLOW 400
@@ -786,3 +793,5 @@ static const struct frame_set caps[] = {
 void bongo_update(void);
 void render_wpm(bool);
 void render_bongocat(bool);
+
+#endif

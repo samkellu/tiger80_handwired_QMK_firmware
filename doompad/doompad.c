@@ -19,7 +19,7 @@
 //     #define USE_EMULATOR
 // #endif
 
-#include "bongo80.h"
+#include "doompad.h"
 #include "doom.h"
 #include "bongo.h"
 
