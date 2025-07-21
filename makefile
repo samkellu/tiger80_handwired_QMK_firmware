@@ -10,6 +10,9 @@ all:build
 build:
 	$(CXX) $(SRC) $(INCL) -DUSE_EMULATOR $(SDLFLAGS) -o $(TARGET)
 
+topdown:
+	$(CXX) $(SRC) $(INCL) -DUSE_EMULATOR -DRENDER_DEBUG $(SDLFLAGS) -o $(TARGET)
+
 clean:
 	rm -f $(TARGET)
 
