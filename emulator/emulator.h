@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -14,6 +15,19 @@
 #define QK_KB_0 1
 #define keyrecord_t
 
+#ifdef RENDER_DEBUG
+    #define EMULATOR_SCR_WIDTH 700
+    #define EMULATOR_SCR_HEIGHT 700
+#else
+    #define EMULATOR_SCR_WIDTH 128  
+    #define EMULATOR_SCR_HEIGHT 64
+#endif
+
+enum oled_state {
+    OFF,
+    CAT,
+    DOOM
+};
 
 typedef struct led_t {
     int caps_lock;
@@ -33,7 +47,7 @@ int oled_write_P(const char*, int);
 int oled_write_raw_P(const char*, size_t);
 int oled_clear();
 int get_current_wpm();
-int host_keyboard_led_state();
+led_t host_keyboard_led_state();
 const char* get_u8_str(uint8_t, char);
 const char* get_u16_str(uint16_t, char);
 uint8_t pgm_read_byte(const void*);

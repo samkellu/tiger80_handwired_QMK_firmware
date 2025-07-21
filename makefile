@@ -3,7 +3,7 @@ CXXFLAGS = -std=c++11 -g
 SRC = emulator/emulator.c
 TARGET = $(SRC:.c=)
 SDLFLAGS = -lSDL2 -lm
-INCL = bongo80/bongo80.c
+INCL = doompad/doom.c doompad/bongo.c
 
 all:build
 

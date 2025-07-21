@@ -1,4 +1,4 @@
-/* Copyright 2023 Sam Kelly (@samkellu)
+/* Copyright 2025 Sam Kelly (@samkellu)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,14 +16,14 @@
 
 #pragma once
 
-#ifndef DOOM_INCL
-#define DOOM_INCL
-
 #ifdef USE_EMULATOR
   #include "../emulator/emulator.h"
 #else
   #include "quantum.h"
 #endif
+
+#ifndef DOOM_INCL
+#define DOOM_INCL
 
 #define SCREEN_WIDTH          128
 #define SCREEN_HEIGHT         64
@@ -32,13 +32,14 @@
 
 #define PI                    3.14159
 #define START_TIME_MILLI      4000
-#define FRAME_TIME_MILLI      20
+#define TARGET_FPS            36
+#define FRAME_TIME_MILLI      1000 / TARGET_FPS
 
 #define WALL_COLLISION_DIST   5
 #define ENEMY_VISION_RANGE    100
 #define ENEMY_WALK_SPEED      1
 #define ROTATION_SPEED        5
-#define WALK_SPEED            2
+#define WALK_SPEED            4
 #define DOV                   400.0f
 #define FOV                   80.0f
 #define MAX_VIEW_DIST         100000.0f
@@ -59,7 +60,6 @@ typedef struct vec2 {
 } vec2;
 
 typedef enum wall_tex {
-  NONE,
   CHECK,
   DOOR
 } wall_tex;
@@ -107,7 +107,7 @@ typedef struct depth_buf_info {
 } depth_buf_info;
 
 #define NUM_ENEMIES 2
-static enemy enemies[2];
+enemy enemies[NUM_ENEMIES];
 
 // Doom logo intro screen, stored in PROGMEM to save global section space
 #define LOGO_WIDTH 128
@@ -335,6 +335,9 @@ static const sprite imp_sprite_hurt_2 = {
 
 static const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
+// #define FRAME_BUFFER_LENGTH (SCREEN_WIDTH * (SCREEN_HEIGHT - UI_HEIGHT)) / sizeof(char)
+// static unsigned char frame_buffer[FRAME_BUFFER_LENGTH];
+
 float pow2(float x);
 
 float dot(vec2 v, vec2 u);
@@ -382,5 +385,7 @@ vec2 get_valid_spawn(void);
 const char* get_u32_str(uint32_t value, char pad);
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);
+
+void write_pixel(int x, int y, bool white);
 
 #endif

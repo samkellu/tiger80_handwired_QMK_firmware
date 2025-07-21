@@ -1,14 +1,8 @@
-#ifndef USE_EMULATOR
-    #define USE_EMULATOR
-#endif
-
 #include <SDL2/SDL.h>
 #include <time.h>
-#include "../bongo80/doom.h"
-#include "../bongo80/bongo80.h"
 #include "emulator.h"
-
-static int screen_mode = DOOM;
+#include "../doompad/doom.h"
+#include "../doompad/bongo.h"
 
 SDL_Window* window;
 SDL_Event event;
@@ -25,7 +19,8 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
     *window = SDL_CreateWindow("QMK Emulator", 
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
-                              512, 512, 0);
+                              EMULATOR_SCR_WIDTH,
+                              EMULATOR_SCR_HEIGHT, 0);
 
     if (!*window)
     {
@@ -45,6 +40,7 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
 
 int oled_write_pixel(int x, int y, bool white)
 {
+    // write_pixel(x, y, white);
     if (white) {
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
@@ -66,8 +62,8 @@ uint32_t timer_elapsed32(int t) {
     return timer_read() - t;
 }
 
-int timer_elapsed() {
-    return timer_read();
+int timer_elapsed(int t) {
+    return timer_read() - t;
 }
 
 int oled_set_cursor(int x, int y)
@@ -102,9 +98,10 @@ int get_current_wpm()
     return 1;
 }
 
-int host_keyboard_led_state()
+led_t host_keyboard_led_state()
 {
-    return 1;
+    led_t res = { 1 };
+    return res;
 }
 
 const char* get_u8_str(uint8_t val, char pad) {
@@ -124,21 +121,17 @@ uint8_t pgm_read_byte(const void* addr)
     return *(uint8_t*) addr;
 }
 
-
-uint32_t ft = 0;
-
 int main()
 {
-    if (!initSDL(&window, &renderer)) 
+   if (!initSDL(&window, &renderer)) 
     {
         printf("Failed to initialise SDL!\n");
         goto clean;
     }
 
-    screen_mode = DOOM;
+    int screen_mode = DOOM;
     doom_setup();
     controls doom_inputs = { 0, 0, 0, 0, 0 };
-
     while (1)
     {
         while (SDL_PollEvent(&event))
@@ -166,6 +159,9 @@ int main()
 
                     else if (event.key.keysym.sym == SDLK_r)
                         doom_setup();
+
+                    else if (event.key.keysym.sym == SDLK_ESCAPE)
+                        screen_mode = (screen_mode + 1) % 3;
                     
                     break;
 
@@ -190,16 +186,12 @@ int main()
 
         switch (screen_mode) {
             case CAT:
-                render_wpm();
-                render_bongocat();
+                bongo_update();
                 break;
     
             case DOOM:
-                if (timer_elapsed32(ft) > FRAME_TIME_MILLI) {
-                    doom_update(doom_inputs);
-                    SDL_RenderPresent(renderer);
-                    ft = timer_read();
-                }
+                doom_update(doom_inputs);
+                SDL_RenderPresent(renderer);
                 break;
             
             default:
