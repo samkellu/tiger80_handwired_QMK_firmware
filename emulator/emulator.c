@@ -40,16 +40,16 @@ int initSDL(SDL_Window** window, SDL_Renderer** renderer)
 
 int oled_write_pixel(int x, int y, bool white)
 {
-    write_pixel(x, y, white);
-    // if (white) {
-    //     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    // write_pixel(x, y, white);
+    if (white) {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
-    // } else {
-    //     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    // }
+    } else {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    }
 
-    // SDL_RenderDrawPoint(renderer, x, y);
-    // return 1;
+    SDL_RenderDrawPoint(renderer, x, y);
+    return 1;
 }
 
 int timer_read() {

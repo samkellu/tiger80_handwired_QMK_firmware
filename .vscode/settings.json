@@ -6,6 +6,8 @@
         "random": "cpp",
         "emulator.h": "c",
         "quantum.h": "c",
-        "doompad.h": "c"
+        "doompad.h": "c",
+        "bongo75.h": "c",
+        "bongo.h": "c"
     }
 }
