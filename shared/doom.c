@@ -198,37 +198,60 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
 
 // =================== BUFFER =================== //
 
+// 128px wide display only!
+void write_pixel(int x, int y, bool white)
+{
+    if (x < 0 || x >= SCREEN_WIDTH) return;
+    if (y < 0 || y >= SCREEN_HEIGHT - UI_HEIGHT) return;
 
-// void write_pixel(int x, int y, bool white)
-// {
-//     if (x < 0 || x >= SCREEN_WIDTH) return;
-//     if (y < 0 || y >= SCREEN_HEIGHT - UI_HEIGHT) return;
+    int block = y >> 3; // y / 8
+    int bit = y & 0x07; // y % 8
+    int byte_idx = (block << 7) + x;
 
-//     int bit_offset = x + (y * SCREEN_WIDTH);
-//     if (white) {
-//         frame_buffer[FRAME_BUFFER_LENGTH] &= ~(1 << (bit_offset % sizeof(char)));
-//     } else {
-//         frame_buffer[FRAME_BUFFER_LENGTH] |= 1 << (bit_offset % sizeof(char));
-//     }
-// }
+    if (white) {
+        frame_buffer[byte_idx] |= 1 << bit;
+    } else {
+        frame_buffer[byte_idx] &= ~(1 << bit);
+    }
+}
 
-// void clear_frame_buffer() {
-//     memset(frame_buffer, 0, FRAME_BUFFER_LENGTH);
-// }
+void clear_frame_buffer() {
+    memset(frame_buffer, 0, FRAME_BUFFER_LENGTH);
+}
 
-// void print_frame_buffer() {
-//     int idx = 0;
-//     for (int y = 0; y < SCREEN_HEIGHT - UI_HEIGHT; y++)
-//     {
-//         for (int x = 0; x < SCREEN_WIDTH; x++)
-//         {
-//             int val = frame_buffer[idx / sizeof(char)] & 1 << (idx % sizeof(char));
-//             printf("%d", val);
-//             idx++;
-//         }
-//         printf("\n");
-//     }
-// }
+void render_frame_buffer() {
+
+    uint8_t* fb = frame_buffer;
+    int row = 0, col = 0;
+    for (int i = 0; i < SCREEN_WIDTH * (SCREEN_HEIGHT - UI_HEIGHT); i++) {
+        uint8_t c = *fb++;
+        for (int j = 0; j < 8; j++) {
+            bool px = c & (1 << (7 - j));
+            write_pixel(col, row, px);
+            if (++col == SCREEN_WIDTH) {
+                row++;
+                col = 0;
+                if (row >= UI_HEIGHT) return;
+            }
+        }
+    }
+
+    clear_frame_buffer();
+}
+
+void print_frame_buffer() {
+    int idx = 0;
+    for (int y = 0; y < SCREEN_HEIGHT - UI_HEIGHT; y++)
+    {
+        for (int x = 0; x < SCREEN_WIDTH; x++)
+        {
+            int val = frame_buffer[idx / sizeof(char)] & 1 << (idx % sizeof(char));
+            printf("%d", val);
+            idx++;
+        }
+        printf("\n");
+    }
+}
 
 
 // =================== GRAPHICS =================== //
@@ -405,7 +428,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
             if (info.depth > enemy_dist2) continue;
 
             for (int k = 0; k < UI_HEIGHT; k++) {
-                oled_write_pixel(j, k, 0);
+                write_pixel(j, k, 0);
             }
             
             vertical_line(j, SCREEN_HEIGHT, 0, 1);
@@ -450,12 +473,12 @@ void vertical_line(int x, int half_length, bool color, int skip) {
     
     for (int i = 0; i < half_length; i += skip) {
         if (WALL_OFFSET - i >= 0) {
-            oled_write_pixel(x, WALL_OFFSET - i, color);
+            write_pixel(x, WALL_OFFSET - i, color);
         }
 
         // Ensures that the wall doesnt overlap with the UI
         if (WALL_OFFSET + i < UI_HEIGHT) {
-            oled_write_pixel(x, WALL_OFFSET + i, color);
+            write_pixel(x, WALL_OFFSET + i, color);
         }
     }
 }
@@ -478,12 +501,12 @@ void check_line(int x, int half_length, bool phase) {
         
         if (i > UI_HEIGHT) break;
         
-        oled_write_pixel(x, i, 1);
+        write_pixel(x, i, 1);
     }
 
-    oled_write_pixel(x, WALL_OFFSET - half_length, 1);
+    write_pixel(x, WALL_OFFSET - half_length, 1);
     if (WALL_OFFSET + half_length < UI_HEIGHT) {
-        oled_write_pixel(x, WALL_OFFSET + half_length, 1);
+        write_pixel(x, WALL_OFFSET + half_length, 1);
     }
 }
 
@@ -497,8 +520,8 @@ void oled_write_bmp_P(sprite img, int x, int y) {
         for (int j = 0; j < 8; j++) {
             bool px = c & (1 << (7 - j));
             bool pxm = m & (1 << (7 - j));
-            if (px) oled_write_pixel(x + col, y + row, true);
-            if (pxm) oled_write_pixel(x + col, y + row, false);
+            if (px) write_pixel(x + col, y + row, true);
+            if (pxm) write_pixel(x + col, y + row, false);
             if (++col == img.width) {
                 row++;
                 col = 0;
@@ -534,8 +557,8 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
                 for (int l = draw_col; l < draw_col_lim; l++) {
                     if (x + l < 0) continue;
                     if (x + l >= SCREEN_WIDTH) break;
-                    if (px) oled_write_pixel(x + l, y + k, true);
-                    if (pxm) oled_write_pixel(x + l, y + k, false);
+                    if (px) write_pixel(x + l, y + k, true);
+                    if (pxm) write_pixel(x + l, y + k, false);
                 }
             }
 
@@ -707,7 +730,7 @@ void bresenham_line(segment s, int offset)
    
     // Bresenham from https://gist.github.com/bert/1085538
     for (;;) {
-        oled_write_pixel(x0, y0, 1);
+        write_pixel(x0, y0, 1);
         if (x0 == x1 && y0 == y1) break;
         e2 = 2 * err;
         if (e2 >= dy) { 
@@ -736,7 +759,7 @@ void render_debug() {
     bresenham_line(walls[0], offset-1);
     bresenham_line(walls[0], offset-2);
     
-    oled_write_pixel(p.x + offset, p.y + offset, 1);
+    write_pixel(p.x + offset, p.y + offset, 1);
     
     segment cone_l = {p, {0, 0}};
     float half_fov = FOV / 2;
@@ -752,11 +775,11 @@ void render_debug() {
     for (int i = 0; i < NUM_ENEMIES; i++)
     {
         enemy e = enemies[i];
-        oled_write_pixel(e.pos.x + offset, e.pos.y + offset, 1);
-        oled_write_pixel(e.pos.x + offset - 1, e.pos.y + offset, 1);
-        oled_write_pixel(e.pos.x + offset + 1, e.pos.y + offset, 1);
-        oled_write_pixel(e.pos.x + offset, e.pos.y + offset - 1, 1);
-        oled_write_pixel(e.pos.x + offset, e.pos.y + offset + 1, 1);
+        write_pixel(e.pos.x + offset, e.pos.y + offset, 1);
+        write_pixel(e.pos.x + offset - 1, e.pos.y + offset, 1);
+        write_pixel(e.pos.x + offset + 1, e.pos.y + offset, 1);
+        write_pixel(e.pos.x + offset, e.pos.y + offset - 1, 1);
+        write_pixel(e.pos.x + offset, e.pos.y + offset + 1, 1);
     }
 }
 #endif
@@ -768,7 +791,7 @@ void doom_update(controls c) {
     int time_elapsed = timer_elapsed32(last_frame);
     if (time_elapsed < FRAME_TIME_MILLI) return;
     
-    oled_clear();
+    // oled_clear();
     // clear_frame_buffer();
     if (shot_timer > 0) shot_timer--;
     if (c.shoot && shot_timer == 0) shot_timer = 2;
@@ -804,7 +827,7 @@ void doom_update(controls c) {
     draw_gun(c.u, shot_timer > 0);
 
     for (int i = 0; i < SCREEN_WIDTH; i++) {
-        oled_write_pixel(i, UI_HEIGHT, 1);
+        write_pixel(i, UI_HEIGHT, 1);
     }
     
     // Displays the current game time
@@ -823,7 +846,7 @@ void doom_update(controls c) {
     oled_write("FPS:", false);
     oled_write(get_u8_str(fpms, ' '), false);
 
-    // print_frame_buffer();
+    render_frame_buffer();
     last_frame = timer_read();
 }
 
