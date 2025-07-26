@@ -87,6 +87,7 @@ typedef struct sprite {
   const uint8_t height;
 } sprite;
 
+#define NUM_ENEMIES 2
 typedef struct enemy {
   vec2 pos;
   int health;
@@ -105,9 +106,6 @@ typedef struct depth_buf_info {
   int length;
   bool is_checked;
 } depth_buf_info;
-
-#define NUM_ENEMIES 2
-enemy enemies[NUM_ENEMIES];
 
 // Doom logo intro screen, stored in PROGMEM to save global section space
 #define LOGO_WIDTH 128
@@ -335,8 +333,7 @@ static const sprite imp_sprite_hurt_2 = {
 
 static const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
-#define FRAME_BUFFER_LENGTH (SCREEN_WIDTH * (SCREEN_HEIGHT - UI_HEIGHT)) / sizeof(char)
-uint8_t frame_buffer[FRAME_BUFFER_LENGTH];
+#define FRAME_BUFFER_LENGTH ((SCREEN_WIDTH * UI_HEIGHT) / 8)//sizeof(uint8_t))
 
 float pow2(float x);
 
@@ -386,12 +383,14 @@ const char* get_u32_str(uint32_t value, char pad);
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);
 
-void write_pixel(int x, int y, bool white);
+void render_debug(segment* relevant_walls, int n);
 
-void print_frame_buffer(void);
+// void write_pixel(int x, int y, bool white);
 
-void clear_frame_buffer(void);
+// void print_frame_buffer(void);
 
-void render_frame_buffer(void);
+// void clear_frame_buffer(void);
+
+// void render_frame_buffer(void);
 
 #endif

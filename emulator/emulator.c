@@ -1,8 +1,8 @@
 #include <SDL2/SDL.h>
 #include <time.h>
 #include "emulator.h"
-#include "../doompad/doom.h"
-#include "../doompad/bongo.h"
+#include "../shared/doom.h"
+#include "../shared/bongo.h"
 
 SDL_Window* window;
 SDL_Event event;
