@@ -52,6 +52,11 @@ vec2 sub(vec2 u, vec2 v) { return (vec2) {u.x - v.x, u.y - v.y}; }
 
 vec2 add(vec2 u, vec2 v) { return (vec2) {u.x + v.x, u.y + v.y}; }
 
+float magnitude(vec2 u) { 
+    float mag2 = u.x * u.x + u.y * u.y;
+    return 1 / inv_sqrt(mag2);
+}
+
 vec2 norm(vec2 u) {
     float mag2 = u.x * u.x + u.y * u.y;
     float inv_mag = inv_sqrt(mag2);
@@ -270,6 +275,51 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
 
 // =================== GRAPHICS =================== //
 
+typedef struct endpoint {
+    segment* s;
+    struct endpoint* next;
+    bool is_end;
+    float angle_to_cone_l;
+} endpoint;
+
+endpoint* merge_sort_endpoints(endpoint* root) {
+
+    if (!root || !root->next)
+        return root;
+
+    // Split linked list
+    endpoint* fast_ptr = root;
+    endpoint* slow_ptr = root;
+    while (fast_ptr && fast_ptr->next) {
+        fast_ptr = fast_ptr->next->next;
+        if (fast_ptr) {
+            slow_ptr = slow_ptr->next;
+        }
+    }
+
+    endpoint* r_root = slow_ptr->next;
+    slow_ptr->next = NULL;
+
+    endpoint* left = merge_sort_endpoints(root);
+    endpoint* right = merge_sort_endpoints(r_root);
+
+    // Merge
+    endpoint new_root = {NULL, NULL, false, -1.0};
+    endpoint* curs = &new_root;
+    while (left || right) {
+        if (left && (!right || left->angle_to_cone_l < right->angle_to_cone_l)) {
+            curs->next = left;
+            left = left->next;
+        } else {
+            curs->next = right;
+            right = right->next;
+        }
+        
+        curs = curs->next;
+    }
+
+    return new_root.next;
+}
 
 // 2.5D raycast renderer for the map and entities around the player
 void render_map(vec2 p, int pa, bool is_shooting) {
@@ -287,12 +337,6 @@ void render_map(vec2 p, int pa, bool is_shooting) {
     bound_angle = FOV / 2;
     cone_r.v.x = p.x + DOV * cosf((pa + bound_angle) * PI / 180);
     cone_r.v.y = p.y + DOV * sinf((pa + bound_angle) * PI / 180);
-
-    typedef struct endpoint {
-        segment s;
-        struct endpoint* next;
-        bool is_clockwise_endpoint;
-    } endpoint;
 
     for (int i = 0; i < num_walls; i++) {
         segment w = walls[i];
@@ -321,12 +365,35 @@ void render_map(vec2 p, int pa, bool is_shooting) {
             relevant_walls[num_relevant - 1] = w;
         }
     }
-
     
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
     depth_buf_info depth_buf[SCREEN_WIDTH];
     segment ray = {p, {0, 0}};
+
+    endpoint* root = NULL;
+    endpoint* curs = NULL;
+    for (int i = 0; i < num_relevant * 2; i++) {
+        segment* wall = &relevant_walls[i/2];
+        vec2 reference_vec = cone_l.v; 
+        vec2 point_vec = i % 2 == 0 ? wall->u : wall->v;
+        point_vec = sub(point_vec, p);
+        float theta = acos(dot(point_vec, reference_vec) / (magnitude(point_vec) * magnitude(reference_vec)));
+
+        endpoint* point = (endpoint*) malloc(sizeof(endpoint));
+        *point = (endpoint) {wall, NULL, i % 2 == 1, theta};
+
+        if (!root) {
+            root = point;
+            curs = point;
+            continue;
+        }
+
+        curs->next = point;
+        curs = curs->next;
+    }
     
+    root = merge_sort_endpoints(root);
+
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
         float ray_angle = (i * FOV / SCREEN_WIDTH) - (FOV / 2);
