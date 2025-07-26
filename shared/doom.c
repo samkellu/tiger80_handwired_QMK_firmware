@@ -52,6 +52,13 @@ vec2 sub(vec2 u, vec2 v) { return (vec2) {u.x - v.x, u.y - v.y}; }
 
 vec2 add(vec2 u, vec2 v) { return (vec2) {u.x + v.x, u.y + v.y}; }
 
+vec2 norm(vec2 u) {
+    float mag2 = u.x * u.x + u.y * u.y;
+    float inv_mag = inv_sqrt(mag2);
+    vec2 res = { u.x * inv_mag, u.y * inv_mag };
+    return res;
+}
+
 vec2 proj(vec2 u, vec2 v) { 
 
     float t = dot(u, v) / dot(v, v);
@@ -70,25 +77,30 @@ float point_ray_dist2(vec2 p, segment s) {
 }
 
 // Returns the point of intersection between two line segments
-vec2 raycast(segment s1, segment s2, bool* hit) {
+float raycast(vec2 ray_origin, vec2 ray_direction, segment s, bool* hit) {
 
     *hit = false;
-    vec2 ret = {-1, -1};
-    float denominator = (s1.u.x - s1.v.x) * (s2.u.y - s2.v.y) - (s1.u.y - s1.v.y) * (s2.u.x - s2.v.x);
 
-    // vectors do not ever intersect
-    if (denominator == 0) return ret;
+    vec2 u = sub(ray_origin, s.u);
+    vec2 v = sub(s.v, s.u);
+    vec2 r = { -ray_direction.y, ray_direction.x };
 
-    float t = ((s1.u.x - s2.u.x) * (s2.u.y - s2.v.y) - (s1.u.y - s2.u.y) * (s2.u.x - s2.v.x)) / denominator;
-    float u = -((s1.u.x - s1.v.x) * (s1.u.y - s2.u.y) - (s1.u.y - s1.v.y) * (s1.u.x - s2.u.x)) / denominator;
+    float vr_dot = dot(v, r);
 
-    // Case where the vectors intersect
-    if (t > 0 && t < 1 && u > 0) {
+    // If segment is close to parallel to the ray
+    if (vr_dot * vr_dot < 0.0001)
+        return -1.0f;
+
+    float t = cross(v, u) / vr_dot;
+    float q = dot(u, r) / vr_dot;
+
+    if (t >= 0 && q >= 0 && q <= 1)
+    {
         *hit = true;
-        ret = (vec2) { s1.u.x + t * (s1.v.x - s1.u.x), s1.u.y + t * (s1.v.y - s1.u.y) };
+        return t;
     }
 
-    return ret;
+    return -1.0f;
 }
 
 // A classic https://en.wikipedia.org/wiki/Fast_inverse_square_root
@@ -276,41 +288,32 @@ void render_map(vec2 p, int pa, bool is_shooting) {
     cone_r.v.x = p.x + DOV * cosf((pa + bound_angle) * PI / 180);
     cone_r.v.y = p.y + DOV * sinf((pa + bound_angle) * PI / 180);
 
-    float middle_ray = (SCREEN_WIDTH / 2) * (FOV / 127.0f) - (FOV / 2.0f);
-    vec2 mid_vec = {
-        DOV * cosf((pa + middle_ray) * PI / 180),
-        DOV * sinf((pa + middle_ray) * PI / 180)
-    };
+    typedef struct endpoint {
+        segment s;
+        struct endpoint* next;
+        bool is_clockwise_endpoint;
+    } endpoint;
 
     for (int i = 0; i < num_walls; i++) {
         segment w = walls[i];
         bool hit = false;
 
-        // Check if intersects the bounds of the fov cone
-        raycast(cone_l, w, &hit);
+        // Check if one endpoint lies in cone
+        bool ccw_of_cone_r = (cone_r.v.x - cone_r.u.x) * (w.u.y - cone_r.u.y) < (cone_r.v.y - cone_r.u.y) * (w.u.x - cone_r.u.x);
+        bool cw_of_cone_l = (cone_l.v.x - cone_l.u.x) * (w.u.y - cone_l.u.y) > (cone_l.v.y - cone_l.u.y) * (w.u.x - cone_l.u.x);
+        hit = ccw_of_cone_r && cw_of_cone_l;
+
+        // If not check if other endpoint lies in cone
         if (!hit) {
-            raycast(cone_r, w, &hit);
+            ccw_of_cone_r = (cone_r.v.x - cone_r.u.x) * (w.v.y - cone_r.u.y) < (cone_r.v.y - cone_r.u.y) * (w.v.x - cone_r.u.x);
+            cw_of_cone_l = (cone_l.v.x - cone_l.u.x) * (w.v.y - cone_l.u.y) > (cone_l.v.y - cone_l.u.y) * (w.v.x - cone_l.u.x);
+            hit = ccw_of_cone_r && cw_of_cone_l;
         }
 
-        // Check if entirely contained within the FOV cone
-        if (!hit) {
-            vec2 endpoint_vec = {
-                w.u.x - p.x,
-                w.u.y - p.y
-            };
-
-            float from_mid = atan2f(cross(endpoint_vec, mid_vec), dot(endpoint_vec, mid_vec)) * 180 / PI;
-            hit = from_mid >= -FOV / 2 && from_mid <= FOV / 2;
-        }
-
-        if (!hit) {
-            vec2 endpoint_vec = {
-                w.v.x - p.x,
-                w.v.y - p.y
-            };
-
-            float from_mid = atan2f(cross(endpoint_vec, mid_vec), dot(endpoint_vec, mid_vec)) * 180 / PI;
-            hit = from_mid >= -FOV / 2 && from_mid <= FOV / 2;
+        // If not check if it fully intersects the cone
+        if (!hit)
+        {
+            raycast(cone_l.u, cone_l.v, w, &hit);
         }
 
         if (hit) {
@@ -320,7 +323,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
     }
 
     #ifdef RENDER_DEBUG
-        render_debug(relevant_walls, num_relevant);
+        render_debug(relevant_walls, num_relevant, cone_l, cone_r);
         free(relevant_walls);
         return;
     #endif
@@ -331,11 +334,14 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
-        float ray_angle = (i * FOV / SCREEN_WIDTH) - (FOV / 2);
-        ray.v.x = p.x + DOV * cosf((pa + ray_angle) * PI / 180);
-        ray.v.y = p.y + DOV * sinf((pa + ray_angle) * PI / 180);
+        float ray_angle = (i * FOV / SCREEN_WIDTH);// - (FOV / 2);
+        // p.x + DOV * cosf((pa + bound_angle) * PI / 180)
 
-        int wall2pt;
+        ray.v.x = p.x + cosf((pa + ray_angle) * PI / 180);
+        ray.v.y = p.y + sinf((pa + ray_angle) * PI / 180);
+        ray.v = norm(ray.v);
+
+        vec2 hit_pt = {-1, -1};
         bool hit_wall = false;
         segment closest_wall = {{0, 0}, {0, 0}, CHECK};
         depth_buf_info info = {MAX_VIEW_DIST, 0, 0, 0};
@@ -343,16 +349,16 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         // Checks if the ray from the camera intersects any walls
         for (int j = 0; j < num_relevant; j++) {
             bool hit = false;
-            vec2 pt = raycast(relevant_walls[j], ray, &hit);
+            float dist = raycast(ray.u, ray.v, relevant_walls[j], &hit);
             if (!hit) continue;
 
             // Checks if the intersected wall is the closest to the camera
-            float ptDist2 = dist2(pt, p);
-            if (ptDist2 < info.depth) {
-                info.depth = ptDist2;
+            if (dist < info.depth) {
+                info.depth = dist;
                 closest_wall = relevant_walls[j];
                 hit_wall = true;
-                wall2pt = dist2(pt, closest_wall.u);
+                hit_pt.x = ray.u.x + ray.v.x * dist;
+                hit_pt.y = ray.u.y + ray.v.y * dist;
             }
         }
 
@@ -360,10 +366,11 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         if (hit_wall) {
             // Draws lines at the edges of walls
             int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
-            wall2pt = 1 / inv_sqrt(wall2pt);
+            int wall2pt = 1 / inv_sqrt(dist2(closest_wall.u, hit_pt));
 
             info.phase = wall2pt % 10 < 5;
-            info.length = 1000 * inv_sqrt(info.depth);
+            info.length = 1000 / info.depth;
+            printf("%d %d %d\n", info.phase, info.length, wall2pt);
 
             switch (closest_wall.tex) {
                 case CHECK:
@@ -389,6 +396,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
     }
 
     free(relevant_walls);
+    vec2 mid_vec = { p.x + cosf(pa * PI / 180), p.y + sinf(pa * PI / 180) };
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
         vec2 e_vec = {
@@ -752,7 +760,7 @@ void bresenham_line(segment s, int offset)
     }
 }
 
-void render_debug(segment* relevant_walls, int n) {
+void render_debug(segment* relevant_walls, int n, segment cone_l, segment cone_r) {
 
     int offset = 50;
     for (int i = 0; i < n; i++)
@@ -768,15 +776,7 @@ void render_debug(segment* relevant_walls, int n) {
     
     oled_write_pixel(p.x + offset, p.y + offset, 1);
     
-    segment cone_l = {p, {0, 0}};
-    float half_fov = FOV / 2;
-    cone_l.v.x = p.x + DOV * cosf((pa - half_fov) * PI / 180);
-    cone_l.v.y = p.y + DOV * sinf((pa - half_fov) * PI / 180);
     bresenham_line(cone_l, offset);
-    
-    segment cone_r = {p, {0, 0}};
-    cone_r.v.x = p.x + DOV * cosf((pa + half_fov) * PI / 180);
-    cone_r.v.y = p.y + DOV * sinf((pa + half_fov) * PI / 180);
     bresenham_line(cone_r, offset);
     
     for (int i = 0; i < NUM_ENEMIES; i++)

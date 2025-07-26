@@ -357,7 +357,7 @@ void doom_update(controls c);
 
 void render_map(vec2 p, int pa, bool is_shooting);
 
-vec2 raycast(segment s1, segment s2, bool* hit);
+float raycast(vec2 ray_origin, vec2 ray_direction, segment s, bool* hit);
 
 void vertical_line(int x, int half_length, bool color, int skip);
 
@@ -383,7 +383,7 @@ const char* get_u32_str(uint32_t value, char pad);
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);
 
-void render_debug(segment* relevant_walls, int n);
+void render_debug(segment* relevant_walls, int n, segment cone_l, segment cone_r);
 
 // void write_pixel(int x, int y, bool white);
 
