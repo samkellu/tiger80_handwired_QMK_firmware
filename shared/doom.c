@@ -88,7 +88,7 @@ float raycast(vec2 ray_origin, vec2 ray_direction, segment s, bool* hit) {
     float vr_dot = dot(v, r);
 
     // If segment is close to parallel to the ray
-    if (vr_dot * vr_dot < 0.0001)
+    if (vr_dot * (vr_dot < 0 ? -1.0 : 1.0) < 0.00001)
         return -1.0f;
 
     float t = cross(v, u) / vr_dot;
@@ -313,7 +313,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         // If not check if it fully intersects the cone
         if (!hit)
         {
-            raycast(cone_l.u, cone_l.v, w, &hit);
+            raycast(cone_l.u, sub(cone_l.v, cone_l.u), w, &hit);
         }
 
         if (hit) {
@@ -322,78 +322,78 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         }
     }
 
-    #ifdef RENDER_DEBUG
-        render_debug(relevant_walls, num_relevant, cone_l, cone_r);
-        free(relevant_walls);
-        return;
-    #endif
     
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
     depth_buf_info depth_buf[SCREEN_WIDTH];
     segment ray = {p, {0, 0}};
-
+    
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
-        float ray_angle = (i * FOV / SCREEN_WIDTH);// - (FOV / 2);
-        // p.x + DOV * cosf((pa + bound_angle) * PI / 180)
-
-        ray.v.x = p.x + cosf((pa + ray_angle) * PI / 180);
-        ray.v.y = p.y + sinf((pa + ray_angle) * PI / 180);
+        float ray_angle = (i * FOV / SCREEN_WIDTH) - (FOV / 2);
+        
+        ray.v.x = cosf((pa + ray_angle) * PI / 180);
+        ray.v.y = sinf((pa + ray_angle) * PI / 180);
         ray.v = norm(ray.v);
-
-        vec2 hit_pt = {-1, -1};
-        bool hit_wall = false;
-        segment closest_wall = {{0, 0}, {0, 0}, CHECK};
+        
+        segment* closest_wall = NULL;
         depth_buf_info info = {MAX_VIEW_DIST, 0, 0, 0};
-
+        
         // Checks if the ray from the camera intersects any walls
         for (int j = 0; j < num_relevant; j++) {
             bool hit = false;
             float dist = raycast(ray.u, ray.v, relevant_walls[j], &hit);
             if (!hit) continue;
-
+            
             // Checks if the intersected wall is the closest to the camera
             if (dist < info.depth) {
                 info.depth = dist;
-                closest_wall = relevant_walls[j];
-                hit_wall = true;
-                hit_pt.x = ray.u.x + ray.v.x * dist;
-                hit_pt.y = ray.u.y + ray.v.y * dist;
+                closest_wall = &relevant_walls[j];
             }
         }
-
+        
         // If ray hit a wall
-        if (hit_wall) {
+        if (closest_wall) {
             // Draws lines at the edges of walls
-            int wall_len = 1 / inv_sqrt(dist2(closest_wall.u, closest_wall.v));
-            int wall2pt = 1 / inv_sqrt(dist2(closest_wall.u, hit_pt));
-
+            vec2 hit_pt = { ray.u.x + ray.v.x * info.depth, ray.u.y + ray.v.y * info.depth };
+            int wall_len = 1 / inv_sqrt(dist2(closest_wall->u, closest_wall->v));
+            int wall2pt = 1 / inv_sqrt(dist2(closest_wall->u, hit_pt));
+            
+            #ifdef RENDER_DEBUG
+                segment s = { ray.u, hit_pt };
+                bresenham_line(s, 50);
+                continue;
+            #endif
+            
             info.phase = wall2pt % 10 < 5;
             info.length = 1000 / info.depth;
-            printf("%d %d %d\n", info.phase, info.length, wall2pt);
-
-            switch (closest_wall.tex) {
+            switch (closest_wall->tex) {
                 case CHECK:
-                    if (wall2pt < 2 || wall2pt > wall_len - 2) {
-                        vertical_line(i, info.length, 1, 2);
-                        
-                    } else {
-                        info.is_checked = true;
-                        check_line(i, info.length, info.phase);
-                    }
-
-                    break;
+                if (wall2pt < 2 || wall2pt > wall_len - 2) {
+                    vertical_line(i, info.length, 1, 2);
+                    
+                } else {
+                    info.is_checked = true;
+                    check_line(i, info.length, info.phase);
+                }
+                
+                break;
                 
                 case DOOR:
-                    vertical_line(i, info.length, 1, 1);
-                    break;
-
+                vertical_line(i, info.length, 1, 1);
+                break;
+                
             }
         }
-
+        
         depth_buf[i] = (depth_buf_info) {info.depth, info.phase, info.length, info.is_checked};
         depth_buf[i+1] = depth_buf[i];
     }
+    
+    #ifdef RENDER_DEBUG
+        render_debug(relevant_walls, num_relevant, cone_l, cone_r);
+        free(relevant_walls);
+        return;
+    #endif
 
     free(relevant_walls);
     vec2 mid_vec = { p.x + cosf(pa * PI / 180), p.y + sinf(pa * PI / 180) };

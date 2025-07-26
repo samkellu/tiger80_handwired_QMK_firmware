@@ -385,6 +385,10 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
 
 void render_debug(segment* relevant_walls, int n, segment cone_l, segment cone_r);
 
+#ifdef RENDER_DEBUG
+  void bresenham_line(segment s, int offset);
+#endif
+
 // void write_pixel(int x, int y, bool white);
 
 // void print_frame_buffer(void);
