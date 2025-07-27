@@ -635,7 +635,7 @@ void doom_dispose(void) {
 
 void doom_update(controls c) {
 
-    if (!initialized || timer_elapsed32(game_time) < START_TIME_MILLI) return;
+    // if (!initialized || timer_elapsed32(game_time) < START_TIME_MILLI) return;
 
     oled_clear();
     if (shot_timer > 0) shot_timer--;

@@ -142,8 +142,12 @@ int main()
                     goto clean;
 
                 case SDL_KEYDOWN:
-                    if (event.key.keysym.sym == SDLK_UP)
+                    if (event.key.keysym.sym == SDLK_UP) {
+                        doom_update(doom_inputs);
+                        SDL_RenderPresent(renderer);
+                        SDL_Delay(100);
                         doom_inputs.u = true;
+                    }
 
                     else if (event.key.keysym.sym == SDLK_DOWN)
                         doom_inputs.d = true;
@@ -190,8 +194,8 @@ int main()
                 break;
     
             case DOOM:
-                doom_update(doom_inputs);
-                SDL_RenderPresent(renderer);
+                // doom_update(doom_inputs);
+                // SDL_RenderPresent(renderer);
                 break;
             
             default:
