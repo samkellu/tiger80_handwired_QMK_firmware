@@ -291,6 +291,11 @@ typedef struct dll {
 void print_dll(dll* root) {
     dll* debug_curs = root;
     printf("Printing DLL: \n");
+    if (!root) {
+        printf("Root was null!\n\n");
+        return;
+    }
+
     while (debug_curs) {
         printf("%f -> ", debug_curs->sorting_factor);
         debug_curs = debug_curs->next;
@@ -337,28 +342,27 @@ dll* merge_sort_dll(dll* root) {
         curs = curs->next;
     }
 
+    new_root.next->prev = NULL;
     return new_root.next;
 }
 
 // 2.5D raycast renderer for the map and entities around the player
 void render_map(vec2 p, int pa, bool is_shooting) {
 
-    printf("\n\n=================== BEGIN FRAME ======================\n\n");
+    // printf("\n\n=================== BEGIN FRAME ======================\n\n");
     // Get walls that intersect the FOV
     segment* relevant_walls = NULL;
     int num_relevant = 0;
 
     segment cone_l = {p, {0, 0}};
-    float bound_angle = (pa - (FOV / 2)) * PI / 180;
-    cone_l.v.x = cosf(bound_angle);
-    cone_l.v.y = sinf(bound_angle);
-    cone_l.v = norm(cone_l.v);
+    float bound_angle = (pa - FOV / 2) * PI / 180;
+    cone_l.v.x = p.x + DOV * cosf(bound_angle);
+    cone_l.v.y = p.y + DOV * sinf(bound_angle);
 
     segment cone_r = {p, {0, 0}};
-    bound_angle = bound_angle = (pa + (FOV / 2)) * PI / 180;
-    cone_r.v.x = cosf(bound_angle);
-    cone_r.v.y = sinf(bound_angle);
-    cone_r.v = norm(cone_r.v);
+    bound_angle = (pa + FOV / 2) * PI / 180;
+    cone_r.v.x = p.x + DOV * cosf(bound_angle);
+    cone_r.v.y = p.y + DOV * sinf(bound_angle);
 
     for (int i = 0; i < num_walls; i++) {
         segment w = walls[i];
@@ -397,14 +401,23 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
     dll* root = NULL;
     dll* curs = NULL;
-    vec2 reference_vec = sub(cone_l.v, p);
+
+    float pa_rads = pa * PI / 180;
+    vec2 reference_vec = {cosf(pa_rads), sinf(pa_rads)};
     for (int i = 0; i < num_relevant; i++) {
         segment* wall = &relevant_walls[i];
         
         vec2 point_vec = sub(wall->u, p);
-        float theta_u = acos(dot(point_vec, reference_vec) / (magnitude(point_vec) * magnitude(reference_vec)));
+        float theta_u = atan2f(cross(reference_vec, point_vec), dot(point_vec, reference_vec));
+
         point_vec = sub(wall->v, p);
-        float theta_v = acos(dot(point_vec, reference_vec) / (magnitude(point_vec) * magnitude(reference_vec)));
+        float theta_v = atan2f(cross(reference_vec, point_vec), dot(point_vec, reference_vec));
+
+        // segment su = {p, {p.x + DOV * osf(pa_rads + theta_u), p.y + DOV * sinf(pa_rads + theta_u)}};
+        // segment sv = {p, {p.x + DOV * cosf(pa_rads + theta_v), p.y + DOV * sinf(pa_rads + theta_v)}};
+
+        // bresenham_line(su, 50);
+        // bresenham_line(sv, 50);
 
         // Sort endpoints by angle, left to right across the FOV
         endpoint* u_point = (endpoint*) malloc(sizeof(endpoint));
@@ -438,12 +451,11 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         render_debug(relevant_walls, num_relevant, cone_l, cone_r);
     #endif
     
-    print_dll(root);
     root = merge_sort_dll(root);
     dll* sweep_curs = root;
     segment* closest_wall = NULL;
 
-    print_dll(root);
+    // print_dll(root);
 
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
@@ -453,22 +465,21 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         ray.v.y = sinf(ray_angle);
         ray.v = norm(ray.v);
         
-        float theta = acos(dot(ray.v, reference_vec) / (magnitude(ray.v) * magnitude(reference_vec)));
-        printf("i: %d/%d theta: %f - %f\n", i, SCREEN_WIDTH, theta, sweep_curs->sorting_factor);
+        float theta = atan2f(cross(reference_vec, ray.v), dot(reference_vec, ray.v));
+        // printf("i: %d/%d\n", i, SCREEN_WIDTH);
         float closest_distance = -1.0;
 
         while (sweep_curs && sweep_curs->sorting_factor < theta) {
 
             endpoint* data = (endpoint*) sweep_curs->data;
             
-            printf("theta: %f - %f | cursor: (%f, %f) -- (%f, %f) is_end: %d\n", theta, sweep_curs->sorting_factor, data->segment->u.x, data->segment->u.y, data->segment->v.x, data->segment->v.y, data->is_end);
-            fflush(stdout);
+            // printf("theta: %f > %f | cursor: (%f, %f) -- (%f, %f) is_end: %d\n", theta, sweep_curs->sorting_factor, data->segment->u.x, data->segment->u.y, data->segment->v.x, data->segment->v.y, data->is_end);
+            // fflush(stdout);
             
             // Remove endpoints from "active" list behind cursor when they end
             if (data->is_end) {
 
-                printf("removing wall %f\n", sweep_curs->sorting_factor);
-                fflush(stdout);
+                // printf("removing wall %f - %f\nList is now:\n", sweep_curs->sorting_factor, ((endpoint*) sweep_curs->data)->adjacent->sorting_factor);
                 if (closest_wall == data->segment) {
                     closest_wall = NULL;
                 }
@@ -489,30 +500,30 @@ void render_map(vec2 p, int pa, bool is_shooting) {
                 if (next) next->prev = prev;
                 if (prev) prev->next = next;
 
+                if (!next && !prev) root = NULL;
+
                 free(sweep_curs->data);
                 free(sweep_curs);
 
                 sweep_curs = next;
 
-                print_dll(root);
+                // print_dll(root);
 
             } else {
 
-                // if (closest_wall) {
-                //     bool hit = false;
-                //     float hit_distance_new = raycast(ray.u, ray.v, *(data->segment), &hit);
-                //     float hit_distance_current = raycast(ray.u, ray.v, *closest_wall, &hit);
-                //     if (hit_distance_new < hit_distance_current) {
-                //         closest_wall = data->segment;
-                //         closest_distance = hit_distance_new;
-                //         printf("Updated closest wall to (%f, %f) -- (%f, %f) | %f < %f\n", closest_wall->u.x, closest_wall->u.y, closest_wall->v.x, closest_wall->v.y, hit_distance_new, hit_distance_current);
-                //     }
-                // } else {
-                //     closest_wall = data->segment;
-                //     printf("Updated closest wall to (%f, %f) -- (%f, %f) | Prev wall null\n", closest_wall->u.x, closest_wall->u.y, closest_wall->v.x, closest_wall->v.y);
-                // }
-
-                closest_wall = NULL;
+                if (closest_wall) {
+                    bool hit = false;
+                    float hit_distance_new = raycast(ray.u, ray.v, *(data->segment), &hit);
+                    if (hit) {
+                        float hit_distance_current = raycast(ray.u, ray.v, *closest_wall, &hit);
+                        // printf("wall hit! distance was %f, old was %f\n", hit_distance_new, hit_distance_current);
+                        if (hit_distance_new < hit_distance_current) {
+                            closest_wall = data->segment;
+                            closest_distance = hit_distance_new;
+                            // printf("Updated closest wall to (%f, %f) -- (%f, %f) | %f < %f\n", closest_wall->u.x, closest_wall->u.y, closest_wall->v.x, closest_wall->v.y, hit_distance_new, hit_distance_current);
+                        }
+                    }
+                }
 
                 sweep_curs = sweep_curs->next;
             }
@@ -520,8 +531,8 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
         if (!closest_wall) {
 
-            printf("\nFinding wall\n");
-            fflush(stdout);
+            // printf("\nFinding wall\n");
+            // fflush(stdout);
             // Find the closest wall from the "Active" segment list behind the sweep cursor.
             // As segments are non-intersecting, we can reuse this until a segment ends or starts. 
             curs = root;
@@ -531,8 +542,8 @@ void render_map(vec2 p, int pa, bool is_shooting) {
                 curs = curs->next;
                 bool hit = false;
                 float hit_distance = raycast(ray.u, ray.v, *s, &hit);
-                printf("distance %f\n", hit_distance);
-                fflush(stdout);
+                // printf("distance %f\n", hit_distance);
+                // fflush(stdout);
                 if (!hit) continue;
                 
                 if (closest_distance < 0 || hit_distance < closest_distance) {
@@ -541,9 +552,9 @@ void render_map(vec2 p, int pa, bool is_shooting) {
                 }
             }
 
-            if (closest_wall) {
-                printf("Found wall (%f, %f) -- (%f, %f)\n", closest_wall->u.x, closest_wall->u.y, closest_wall->v.y, closest_wall->v.y);
-            }
+            // if (closest_wall) {
+            //     printf("Found wall (%f, %f) -- (%f, %f)\n", closest_wall->u.x, closest_wall->u.y, closest_wall->v.y, closest_wall->v.y);
+            // }
         }
         
         depth_buf_info info = {MAX_VIEW_DIST, 0, 0, 0};
@@ -990,7 +1001,11 @@ void render_debug(segment* relevant_walls, int n, segment cone_l, segment cone_r
     oled_write_pixel(p.x + offset, p.y + offset, 1);
     
     bresenham_line(cone_l, offset);
+    bresenham_line(cone_l, offset+1);
+    bresenham_line(cone_l, offset-1);
     bresenham_line(cone_r, offset);
+    bresenham_line(cone_r, offset+1);
+    bresenham_line(cone_r, offset-1);
     
     for (int i = 0; i < NUM_ENEMIES; i++)
     {
