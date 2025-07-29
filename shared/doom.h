@@ -32,7 +32,7 @@
 
 #define PI                    3.14159
 #define START_TIME_MILLI      4000
-#define TARGET_FPS            36
+#define TARGET_FPS            20
 #define FRAME_TIME_MILLI      1000 / TARGET_FPS
 
 #define WALL_COLLISION_DIST   5
@@ -331,9 +331,20 @@ static const sprite imp_sprite_hurt_2 = {
   IMP_HEIGHT
 };
 
-static const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
+typedef struct endpoint {
+    segment* segment;
+    struct dll* adjacent;
+    bool is_end;
+} endpoint;
 
-#define FRAME_BUFFER_LENGTH ((SCREEN_WIDTH * UI_HEIGHT) / 8)//sizeof(uint8_t))
+typedef struct dll {
+    void* data;
+    struct dll* next;
+    struct dll* prev;
+    float sorting_factor;
+} dll;
+
+static const sprite imp_hurt_sheet[] = {imp_sprite_hurt_1, imp_sprite_hurt_2};
 
 float pow2(float x);
 
@@ -383,9 +394,10 @@ const char* get_u32_str(uint32_t value, char pad);
 
 segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b, int depth);
 
-void render_debug(segment* relevant_walls, int n, segment cone_l, segment cone_r);
 
 #ifdef RENDER_DEBUG
+  void render_debug(dll* root, segment cone_l, segment cone_r);
+  
   void bresenham_line(segment s, int offset);
 #endif
 

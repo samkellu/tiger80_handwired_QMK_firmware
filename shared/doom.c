@@ -37,7 +37,7 @@ int gun_y = GUN_Y + 10;
 segment* walls = NULL;
 int num_walls = 0;
 
-uint8_t frame_buffer[FRAME_BUFFER_LENGTH];
+int raycast_calls = 0;
 enemy enemies[NUM_ENEMIES];
 
 // =================== MATH =================== //
@@ -81,19 +81,21 @@ float point_ray_dist2(vec2 p, segment s) {
     return k <= 0 ? dist2(p, s.u) : k >= 1 ? dist2(p, s.v) : dist2(p, p_proj);
 }
 
-// Returns the point of intersection between two line segments
+// Returns the distance along the ray at which the intersection occurs
 float raycast(vec2 ray_origin, vec2 ray_direction, segment s, bool* hit) {
 
+    raycast_calls++;
     *hit = false;
 
+    ray_direction = norm(ray_direction);
     vec2 u = sub(ray_origin, s.u);
     vec2 v = sub(s.v, s.u);
     vec2 r = { -ray_direction.y, ray_direction.x };
 
     float vr_dot = dot(v, r);
 
-    // If segment is close to parallel to the ray
-    if (vr_dot * (vr_dot < 0 ? -1.0 : 1.0) < 0.00001)
+    // If segment is parallel to the ray
+    if (vr_dot == 0)
         return -1.0f;
 
     float t = cross(v, u) / vr_dot;
@@ -106,6 +108,12 @@ float raycast(vec2 ray_origin, vec2 ray_direction, segment s, bool* hit) {
     }
 
     return -1.0f;
+}
+
+bool point_lies_in_cone(segment cone_l, segment cone_r, vec2 u) {
+    bool ccw_of_cone_r = (cone_r.v.x - cone_r.u.x) * (u.y - cone_r.u.y) < (cone_r.v.y - cone_r.u.y) * (u.x - cone_r.u.x);
+    bool cw_of_cone_l = (cone_l.v.x - cone_l.u.x) * (u.y - cone_l.u.y) > (cone_l.v.y - cone_l.u.y) * (u.x - cone_l.u.x);
+    return ccw_of_cone_r && cw_of_cone_l;
 }
 
 // A classic https://en.wikipedia.org/wiki/Fast_inverse_square_root
@@ -275,18 +283,6 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
 
 // =================== GRAPHICS =================== //
 
-typedef struct endpoint {
-    segment* segment;
-    struct dll* adjacent;
-    bool is_end;
-} endpoint;
-
-typedef struct dll {
-    void* data;
-    struct dll* next;
-    struct dll* prev;
-    float sorting_factor;
-} dll;
 
 void print_dll(dll* root) {
     dll* debug_curs = root;
@@ -297,7 +293,9 @@ void print_dll(dll* root) {
     }
 
     while (debug_curs) {
-        printf("%f -> ", debug_curs->sorting_factor);
+        endpoint* e = (endpoint*) debug_curs->data;
+        segment* s = e->segment;
+        printf("%f : (%f,%f) -- (%f, %f) isEnd: %s ->\n", debug_curs->sorting_factor, s->u.x, s->u.y, s->v.x, s->v.y, e->is_end ? "yes" : "no");
         debug_curs = debug_curs->next;
     }
     
@@ -350,9 +348,7 @@ dll* merge_sort_dll(dll* root) {
 void render_map(vec2 p, int pa, bool is_shooting) {
 
     // printf("\n\n=================== BEGIN FRAME ======================\n\n");
-    // Get walls that intersect the FOV
-    segment* relevant_walls = NULL;
-    int num_relevant = 0;
+    raycast_calls = 0;
 
     segment cone_l = {p, {0, 0}};
     float bound_angle = (pa - FOV / 2) * PI / 180;
@@ -363,54 +359,40 @@ void render_map(vec2 p, int pa, bool is_shooting) {
     bound_angle = (pa + FOV / 2) * PI / 180;
     cone_r.v.x = p.x + DOV * cosf(bound_angle);
     cone_r.v.y = p.y + DOV * sinf(bound_angle);
-
-    for (int i = 0; i < num_walls; i++) {
-        segment w = walls[i];
-        bool hit = false;
-
-        // Check if one endpoint lies in cone
-        bool ccw_of_cone_r = (cone_r.v.x - cone_r.u.x) * (w.u.y - cone_r.u.y) < (cone_r.v.y - cone_r.u.y) * (w.u.x - cone_r.u.x);
-        bool cw_of_cone_l = (cone_l.v.x - cone_l.u.x) * (w.u.y - cone_l.u.y) > (cone_l.v.y - cone_l.u.y) * (w.u.x - cone_l.u.x);
-        hit = ccw_of_cone_r && cw_of_cone_l;
-
-        // If not check if other endpoint lies in cone
-        if (!hit) {
-            ccw_of_cone_r = (cone_r.v.x - cone_r.u.x) * (w.v.y - cone_r.u.y) < (cone_r.v.y - cone_r.u.y) * (w.v.x - cone_r.u.x);
-            cw_of_cone_l = (cone_l.v.x - cone_l.u.x) * (w.v.y - cone_l.u.y) > (cone_l.v.y - cone_l.u.y) * (w.v.x - cone_l.u.x);
-            hit = ccw_of_cone_r && cw_of_cone_l;
-        }
-
-        // If not check if it fully intersects the cone
-        if (!hit)
-        {
-            raycast(cone_l.u, cone_l.v, w, &hit);
-        }
-
-        if (hit) {
-            relevant_walls = (segment*) realloc(relevant_walls, sizeof(segment) * ++num_relevant);
-            relevant_walls[num_relevant - 1] = w;
-        }
-    }
     
     // Stores the depth at each pixel and the phase of the wall it hit for easier reconstruction
     depth_buf_info depth_buf[SCREEN_WIDTH];
     segment ray = {p, {0, 0}};
-
-    segment* active_walls = NULL;
-    int n_active_walls = 0;
 
     dll* root = NULL;
     dll* curs = NULL;
 
     float pa_rads = pa * PI / 180;
     vec2 reference_vec = {cosf(pa_rads), sinf(pa_rads)};
-    for (int i = 0; i < num_relevant; i++) {
-        segment* wall = &relevant_walls[i];
+    for (int i = 0; i < num_walls; i++) {
+        segment wall = walls[i];
+        bool hit = false;
+
+        // Check if one endpoint lies in cone
+        hit = point_lies_in_cone(cone_l, cone_r, wall.u);
+
+        // If not check if other endpoint lies in cone
+        if (!hit) {
+            hit = point_lies_in_cone(cone_l, cone_r, wall.v);
+        }
+
+        // If not check if it fully intersects the cone
+        if (!hit)
+        {
+            raycast(p, reference_vec, wall, &hit);
+        }
+
+        if (!hit) continue;
         
-        vec2 point_vec = sub(wall->u, p);
+        vec2 point_vec = sub(wall.u, p);
         float theta_u = atan2f(cross(reference_vec, point_vec), dot(point_vec, reference_vec));
 
-        point_vec = sub(wall->v, p);
+        point_vec = sub(wall.v, p);
         float theta_v = atan2f(cross(reference_vec, point_vec), dot(point_vec, reference_vec));
 
         // segment su = {p, {p.x + DOV * osf(pa_rads + theta_u), p.y + DOV * sinf(pa_rads + theta_u)}};
@@ -419,9 +401,39 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         // bresenham_line(su, 50);
         // bresenham_line(sv, 50);
 
+        
+        if (theta_u < 0 != theta_v < 0) {
+            
+            bool u_in_fov = point_lies_in_cone(cone_l, cone_r, wall.u);
+            bool v_in_fov = point_lies_in_cone(cone_l, cone_r, wall.v);
+            
+            vec2 cone_r_dir = sub(cone_r.v, p);
+            segment neg_cone_r = {p, sub(p, cone_r_dir)};
+            vec2 cone_l_dir = sub(cone_l.v, p);
+            segment neg_cone_l = {p, sub(p, cone_l_dir)};
+            
+            bool u_in_neg_fov = point_lies_in_cone(neg_cone_l, neg_cone_r, wall.u);
+            bool v_in_neg_fov = point_lies_in_cone(neg_cone_l, neg_cone_r, wall.v);
+            
+            if (u_in_fov && v_in_neg_fov) {
+                
+                bool p_right_of_wall = (wall.v.x - wall.u.x) * (p.y - wall.u.y) < (wall.v.y - wall.u.y) * (p.x - wall.u.x);
+                if (p_right_of_wall) {
+                    theta_v -= 2 * PI;
+                }
+            } else if (v_in_fov && u_in_neg_fov) {
+                bool p_left_of_wall = (wall.v.x - wall.u.x) * (p.y - wall.u.y) < (wall.v.y - wall.u.y) * (p.x - wall.u.x);
+                if (p_left_of_wall) {
+                    theta_u += 2 * PI;
+                }
+            }
+        }
+        
+        bool u_is_end = theta_u > theta_v;
+
         // Sort endpoints by angle, left to right across the FOV
         endpoint* u_point = (endpoint*) malloc(sizeof(endpoint));
-        *u_point = (endpoint) {wall, NULL, theta_u > theta_v};
+        *u_point = (endpoint) {&walls[i], NULL, u_is_end};
 
 
         dll* u_node = (dll*) malloc(sizeof(dll));
@@ -436,7 +448,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         }
         
         endpoint* v_point = (endpoint*) malloc(sizeof(endpoint));
-        *v_point = (endpoint) {wall, u_node, theta_u <= theta_v};
+        *v_point = (endpoint) {&walls[i], u_node, !u_is_end};
         
         
         dll* v_node = (dll*) malloc(sizeof(dll));
@@ -448,14 +460,14 @@ void render_map(vec2 p, int pa, bool is_shooting) {
     }
 
     #ifdef RENDER_DEBUG
-        render_debug(relevant_walls, num_relevant, cone_l, cone_r);
+        render_debug(root, cone_l, cone_r);
     #endif
     
     root = merge_sort_dll(root);
     dll* sweep_curs = root;
     segment* closest_wall = NULL;
 
-    // print_dll(root);
+    print_dll(root);
 
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
@@ -614,8 +626,6 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         free(val);
     }
     
-    free(relevant_walls);
-    
     #ifdef RENDER_DEBUG
         return;
     #endif
@@ -632,10 +642,9 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         if (enemy_angle >= FOV / 2 || enemy_angle < -FOV / 2) continue;
 
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
-        float enemy_dist2 = dist2(e.pos, p);
-        float enemy_dist_inv = inv_sqrt(enemy_dist2);
-        int scale_height = e.s[e.anim_state].height * 50 * enemy_dist_inv;
-        int scale_width = e.s[e.anim_state].width * 50 * enemy_dist_inv;
+        float enemy_dist = 1 / inv_sqrt(dist2(e.pos, p));
+        int scale_height = e.s[e.anim_state].height * 50 / enemy_dist;
+        int scale_width = e.s[e.anim_state].width * 50 / enemy_dist;
 
         int enemy_screen_x = SCREEN_WIDTH - SCREEN_WIDTH * (enemy_angle + (FOV / 2)) / FOV;
         int enemy_screen_l = MAX(MIN(enemy_screen_x - scale_width / 2, SCREEN_WIDTH - 1), 0);
@@ -643,7 +652,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
         bool draw = false;
         for (int j = enemy_screen_l; j < enemy_screen_r; j++) {
-            if (depth_buf[j].depth > enemy_dist2) {
+            if (depth_buf[j].depth > enemy_dist) {
                 draw = true;
                 break;
             }
@@ -658,7 +667,6 @@ void render_map(vec2 p, int pa, bool is_shooting) {
                 reload_enemy(&enemies[i]);
                 score++;
             }
-        
         } else {
             oled_write_bmp_P_scaled(e.s[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
         }
@@ -666,7 +674,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         // Redraw walls where entity sprite should be behind
         for (int j = enemy_screen_l; j < enemy_screen_r; j++) {
             depth_buf_info info = depth_buf[j];
-            if (info.depth > enemy_dist2) continue;
+            if (info.depth > enemy_dist) continue;
 
             for (int k = 0; k < UI_HEIGHT; k++) {
                 oled_write_pixel(j, k, 0);
@@ -984,13 +992,14 @@ void bresenham_line(segment s, int offset)
     }
 }
 
-void render_debug(segment* relevant_walls, int n, segment cone_l, segment cone_r) {
+void render_debug(dll* root, segment cone_l, segment cone_r) {
 
     int offset = 50;
-    for (int i = 0; i < n; i++)
+    dll* curs = root;
+    while (curs)
     {
-        segment wall = relevant_walls[i];
-        bresenham_line(wall, offset);
+        bresenham_line(*((endpoint*) curs->data)->segment, offset);
+        curs = curs->next;
     }
 
     bresenham_line(walls[0], offset+1);
@@ -1078,7 +1087,9 @@ void doom_update(controls c) {
     int fpms = 1000 / (float) time_elapsed;
     oled_set_cursor(0, 0);
     oled_write("FPS:", false);
-    oled_write(get_u8_str(fpms, ' '), false);
+    oled_write(get_u16_str(fpms, ' '), false);
+    oled_write("num raycast calls:", false);
+    oled_write(get_u16_str(raycast_calls, ' '), false);
 
     last_frame = timer_read();
 }
