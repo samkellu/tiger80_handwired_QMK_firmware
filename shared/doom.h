@@ -61,7 +61,8 @@ typedef struct vec2 {
 
 typedef enum wall_tex {
   CHECK,
-  DOOR
+  LINES,
+  DOOR,
 } wall_tex;
 
 // A line segment or ray
