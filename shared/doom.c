@@ -18,27 +18,27 @@
 #include "math.h"
 
 // Player information
-vec2 p;
-float pa;
-int shot_timer;
-bool has_key = false;
+static vec2 p;
+static float pa;
+static int shot_timer;
+static bool has_key = false;
 
 // Game management information
-uint32_t game_time;
-uint32_t last_frame;
-uint8_t score;
-bool initialized = false;
+static uint16_t game_time;
+static uint16_t last_frame;
+static uint8_t score;
+static bool initialized = false;
 
 // Gun animation
-int gun_x = GUN_X;
-int gun_y = GUN_Y + 10;
+static int gun_x = GUN_X;
+static int gun_y = GUN_Y + 10;
 
 // Level
-segment* walls = NULL;
-int num_walls = 0;
+static segment* walls = NULL;
+static int num_walls = 0;
 
-int raycast_calls = 0;
-enemy enemies[NUM_ENEMIES];
+static int raycast_calls = 0;
+static enemy enemies[NUM_ENEMIES];
 
 // =================== MATH =================== //
 
@@ -396,7 +396,7 @@ void render_map(vec2 p, float pa, bool is_shooting) {
 
         // When walls have an endpoint behind the player, the incorrect endpoint may be calculated as the "start" and "end" 
         // as far as the sweepline is concerned. By checking the specific case and side of p which the wall lies on, we can alleviate this issue.
-        if (theta_u < 0 != theta_v < 0 && u_in_fov != v_in_fov) {
+        if ((theta_u < 0) != (theta_v < 0) && u_in_fov != v_in_fov) {
             if (u_in_fov) {
                 bool v_in_neg_fov = point_lies_in_cone(neg_cone_l, neg_cone_r, wall.v);
                 if (v_in_neg_fov) {
@@ -1009,11 +1009,11 @@ void doom_update(controls c) {
     if (c.shoot && shot_timer == 0) shot_timer = 2;
 
     if (c.l) {
-        pa -= ROTATION_SPEED < 0 ? ROTATION_SPEED + 2 * PI : ROTATION_SPEED;
+        pa -= ROTATION_SPEED_RADS < 0 ? ROTATION_SPEED_RADS + 2 * PI : ROTATION_SPEED_RADS;
     }
 
     if (c.r) {
-        pa += ROTATION_SPEED >= 2 * PI ? ROTATION_SPEED - 2 * PI : ROTATION_SPEED;
+        pa += ROTATION_SPEED_RADS >= 2 * PI ? ROTATION_SPEED_RADS - 2 * PI : ROTATION_SPEED_RADS;
     }
 
     if (!c.d != !c.u) {

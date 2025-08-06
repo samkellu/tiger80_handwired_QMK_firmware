@@ -33,21 +33,21 @@
 #define PI                    3.14159
 #define START_TIME_MILLI      4000
 #define TARGET_FPS            20
-#define FRAME_TIME_MILLI      1000 / TARGET_FPS
 
 #define WALL_COLLISION_DIST   5
 #define ENEMY_VISION_RANGE    100
 #define ENEMY_WALK_SPEED      1
-#define ROTATION_SPEED        5 * PI / 180.0f
+#define ROTATION_SPEED        5
 #define WALK_SPEED            4
+
+// RENDERING
 #define DOV                   400.0f
 #define FOV                   80.0f
-#define FOV_RADS              (FOV * PI / 180.0f)
 #define MAX_VIEW_DIST         100000.0f
 #define UI_HEIGHT             54
+
+// MAP GEN
 #define WALL_OFFSET           27
-#define GUN_X                 SCREEN_WIDTH / 2
-#define GUN_Y                 UI_HEIGHT
 #define MIN_ROOM_WIDTH        20
 #define MAP_GEN_REC_DEPTH     4
 #define MAP_WIDTH             300
@@ -55,6 +55,11 @@
 #define DOOR_WIDTH            20
 #define DOOR_IDX              0
 
+static const float ROTATION_SPEED_RADS  = ROTATION_SPEED * PI / 180.0f;
+static const float FOV_RADS             = FOV * PI / 180.0f;
+static const float FRAME_TIME_MILLI     = 1000 / TARGET_FPS;
+static const int GUN_X                  = SCREEN_WIDTH / 2;
+static const int GUN_Y                  = UI_HEIGHT;
 // Represents a place in 2D space
 typedef struct vec2 {
   float x, y;
