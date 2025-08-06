@@ -42,7 +42,7 @@
 #define WALK_SPEED            4
 #define DOV                   400.0f
 #define FOV                   80.0f
-#define FOV_RADS              FOV * PI / 180.0f
+#define FOV_RADS              (FOV * PI / 180.0f)
 #define MAX_VIEW_DIST         100000.0f
 #define UI_HEIGHT             54
 #define WALL_OFFSET           27

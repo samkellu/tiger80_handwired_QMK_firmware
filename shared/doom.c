@@ -606,17 +606,17 @@ void render_map(vec2 p, float pa, bool is_shooting) {
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
 
-        vec2 e_vec = sub(p, e.pos);
+        vec2 e_vec = sub(e.pos, p);
         float enemy_angle = atan2f(cross(reference_vec, e_vec), dot(reference_vec, e_vec));
 
         if (enemy_angle < -FOV_RADS / 2 || enemy_angle > FOV_RADS / 2) continue;
-
+        
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
         float enemy_dist = magnitude(e_vec);
         int scale_height = e.s[e.anim_state].height * 50 / enemy_dist;
         int scale_width = e.s[e.anim_state].width * 50 / enemy_dist;
-
-        int enemy_screen_x = SCREEN_WIDTH - SCREEN_WIDTH * (enemy_angle + (FOV_RADS / 2)) / FOV_RADS;
+        
+        int enemy_screen_x = SCREEN_WIDTH * (enemy_angle + (FOV_RADS / 2) / FOV_RADS);
         int enemy_screen_l = MAX(MIN(enemy_screen_x - scale_width / 2, SCREEN_WIDTH - 1), 0);
         int enemy_screen_r = MAX(MIN(enemy_screen_x + scale_width / 2, SCREEN_WIDTH - 1), 0);
 
