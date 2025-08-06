@@ -38,10 +38,11 @@
 #define WALL_COLLISION_DIST   5
 #define ENEMY_VISION_RANGE    100
 #define ENEMY_WALK_SPEED      1
-#define ROTATION_SPEED        5
+#define ROTATION_SPEED        5 * PI / 180.0f
 #define WALK_SPEED            4
 #define DOV                   400.0f
 #define FOV                   80.0f
+#define FOV_RADS              FOV * PI / 180.0f
 #define MAX_VIEW_DIST         100000.0f
 #define UI_HEIGHT             54
 #define WALL_OFFSET           27
@@ -367,7 +368,7 @@ void draw_gun(bool moving, bool show_flash);
 
 void doom_update(controls c);
 
-void render_map(vec2 p, int pa, bool is_shooting);
+void render_map(vec2 p, float pa, bool is_shooting);
 
 float raycast(vec2 ray_origin, vec2 ray_direction, segment s, bool* hit);
 

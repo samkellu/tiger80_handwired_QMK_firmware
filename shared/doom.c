@@ -19,7 +19,7 @@
 
 // Player information
 vec2 p;
-int pa;
+float pa;
 int shot_timer;
 bool has_key = false;
 
@@ -345,18 +345,18 @@ dll* merge_sort_dll(dll* root) {
 }
 
 // 2.5D raycast renderer for the map and entities around the player
-void render_map(vec2 p, int pa, bool is_shooting) {
+void render_map(vec2 p, float pa, bool is_shooting) {
 
     // printf("\n\n=================== BEGIN FRAME ======================\n\n");
     raycast_calls = 0;
 
     segment cone_l = {p, {0, 0}};
-    float bound_angle = (pa - FOV / 2) * PI / 180;
+    float bound_angle = pa - FOV_RADS / 2;
     cone_l.v.x = p.x + DOV * cosf(bound_angle);
     cone_l.v.y = p.y + DOV * sinf(bound_angle);
 
     segment cone_r = {p, {0, 0}};
-    bound_angle = (pa + FOV / 2) * PI / 180;
+    bound_angle = pa + FOV_RADS / 2;
     cone_r.v.x = p.x + DOV * cosf(bound_angle);
     cone_r.v.y = p.y + DOV * sinf(bound_angle);
     
@@ -373,8 +373,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
     vec2 cone_l_dir = sub(cone_l.v, p);
     segment neg_cone_l = {p, sub(p, cone_l_dir)};
 
-    float pa_rads = pa * PI / 180;
-    vec2 reference_vec = {cosf(pa_rads), sinf(pa_rads)};
+    vec2 reference_vec = {cosf(pa), sinf(pa)};
     for (int i = 0; i < num_walls; i++) {
         segment wall = walls[i];
         bool relevant = false;
@@ -454,7 +453,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
 
     // Skips every second raycast on walls for performance
     for (int i = 0; i < SCREEN_WIDTH; i += 2) {
-        float ray_angle = (pa + (i * FOV / SCREEN_WIDTH) - (FOV / 2)) * PI / 180;
+        float ray_angle = pa + (i * FOV_RADS / SCREEN_WIDTH) - (FOV_RADS / 2);
         
         ray.v.x = cosf(ray_angle);
         ray.v.y = sinf(ray_angle);
@@ -529,8 +528,6 @@ void render_map(vec2 p, int pa, bool is_shooting) {
                 curs = curs->next;
                 bool hit = false;
                 float hit_distance = raycast(ray.u, ray.v, *s, &hit);
-                // printf("distance %f\n", hit_distance);
-                // fflush(stdout);
                 if (!hit) continue;
                 
                 if (closest_distance < 0 || hit_distance < closest_distance) {
@@ -577,7 +574,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
                     break;
 
                 case LINES:
-                    info.phase = wall2pt % 20 == 0;
+                    info.phase = (wall2pt + 1) % 20 < 3;
                     vertical_line(i, info.length, 1, MAX(1, info.length - 1));
 
                     if (info.phase) {
@@ -606,23 +603,20 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         free(val);
     }
     
-    vec2 mid_vec = { p.x + cosf(pa * PI / 180), p.y + sinf(pa * PI / 180) };
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemy e = enemies[i];
-        vec2 e_vec = {
-            e.pos.x - p.x,
-            e.pos.y - p.y
-        };
 
-        float enemy_angle = atan2f(cross(e_vec, mid_vec), dot(e_vec, mid_vec)) * 180 / PI;
-        if (enemy_angle >= FOV / 2 || enemy_angle < -FOV / 2) continue;
+        vec2 e_vec = sub(p, e.pos);
+        float enemy_angle = atan2f(cross(reference_vec, e_vec), dot(reference_vec, e_vec));
+
+        if (enemy_angle < -FOV_RADS / 2 || enemy_angle > FOV_RADS / 2) continue;
 
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
-        float enemy_dist = 1 / inv_sqrt(dist2(e.pos, p));
+        float enemy_dist = magnitude(e_vec);
         int scale_height = e.s[e.anim_state].height * 50 / enemy_dist;
         int scale_width = e.s[e.anim_state].width * 50 / enemy_dist;
 
-        int enemy_screen_x = SCREEN_WIDTH - SCREEN_WIDTH * (enemy_angle + (FOV / 2)) / FOV;
+        int enemy_screen_x = SCREEN_WIDTH - SCREEN_WIDTH * (enemy_angle + (FOV_RADS / 2)) / FOV_RADS;
         int enemy_screen_l = MAX(MIN(enemy_screen_x - scale_width / 2, SCREEN_WIDTH - 1), 0);
         int enemy_screen_r = MAX(MIN(enemy_screen_x + scale_width / 2, SCREEN_WIDTH - 1), 0);
 
@@ -637,7 +631,7 @@ void render_map(vec2 p, int pa, bool is_shooting) {
         if (!draw) continue;
 
         int enemy_screen_y = WALL_OFFSET - scale_height / 3;
-        if (is_shooting && enemy_angle >= -FOV / 8 && enemy_angle < FOV / 8) {
+        if (is_shooting && enemy_angle >= -FOV_RADS / 8 && enemy_angle < FOV_RADS / 8) {
             oled_write_bmp_P_scaled(e.s_hurt[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
             if (--enemies[i].health < 0) {
                 reload_enemy(&enemies[i]);
@@ -1015,17 +1009,17 @@ void doom_update(controls c) {
     if (c.shoot && shot_timer == 0) shot_timer = 2;
 
     if (c.l) {
-        pa -= ROTATION_SPEED < 0 ? ROTATION_SPEED + 360 : ROTATION_SPEED;
+        pa -= ROTATION_SPEED < 0 ? ROTATION_SPEED + 2 * PI : ROTATION_SPEED;
     }
 
     if (c.r) {
-        pa += ROTATION_SPEED >= 360 ? ROTATION_SPEED - 360 : ROTATION_SPEED;
+        pa += ROTATION_SPEED >= 2 * PI ? ROTATION_SPEED - 2 * PI : ROTATION_SPEED;
     }
 
     if (!c.d != !c.u) {
         int walk_dist = c.u ? WALK_SPEED : -WALK_SPEED;
-        vec2 pnx = {p.x + walk_dist * cos(pa * (PI / 180)), p.y};
-        vec2 pny = {p.x, p.y + walk_dist * sin(pa * (PI / 180))};
+        vec2 pnx = {p.x + walk_dist * cosf(pa), p.y};
+        vec2 pny = {p.x, p.y + walk_dist * sinf(pa)};
         if (!collision_detection(pnx, false)) p.x = pnx.x;
         if (!collision_detection(pny, false)) p.y = pny.y;
     }
