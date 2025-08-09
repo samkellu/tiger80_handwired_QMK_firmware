@@ -52,14 +52,20 @@ int oled_write_pixel(int x, int y, bool white)
     return 1;
 }
 
-int timer_read() {
+uint16_t timer_read() {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC_RAW, &t); // change CLOCK_MONOTONIC_RAW to CLOCK_MONOTONIC on non linux computers
     return t.tv_sec * 1000 + (t.tv_nsec + 500000) / 1000000;
 }
 
-uint32_t timer_elapsed32(int t) {
-    return timer_read() - t;
+uint32_t timer_read32() {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &t); // change CLOCK_MONOTONIC_RAW to CLOCK_MONOTONIC on non linux computers
+    return t.tv_sec * 1000 + (t.tv_nsec + 500000) / 1000000;
+}
+
+uint32_t timer_elapsed32(uint32_t t) {
+    return timer_read32() - t;
 }
 
 int timer_elapsed(int t) {
@@ -119,6 +125,10 @@ const char* get_u16_str(uint16_t val, char pad) {
 uint8_t pgm_read_byte(const void* addr)
 {
     return *(uint8_t*) addr;
+}
+
+void render() {
+    SDL_RenderPresent(renderer);
 }
 
 int main()
@@ -195,7 +205,6 @@ int main()
     
             case DOOM:
                 doom_update(doom_inputs);
-                SDL_RenderPresent(renderer);
                 break;
             
             default:

@@ -32,7 +32,7 @@
 
 #define PI                    3.14159
 #define START_TIME_MILLI      4000
-#define TARGET_FPS            20
+#define TARGET_FPS            30
 
 #define WALL_COLLISION_DIST   5
 #define ENEMY_VISION_RANGE    100
@@ -49,9 +49,9 @@
 // MAP GEN
 #define WALL_OFFSET           27
 #define MIN_ROOM_WIDTH        20
-#define MAP_GEN_REC_DEPTH     4
-#define MAP_WIDTH             300
-#define MAP_HEIGHT            300
+#define MAP_GEN_REC_DEPTH     7
+#define MAP_WIDTH             500
+#define MAP_HEIGHT            500
 #define DOOR_WIDTH            20
 #define DOOR_IDX              0
 

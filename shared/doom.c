@@ -24,7 +24,7 @@ static int shot_timer;
 static bool has_key = false;
 
 // Game management information
-static uint16_t game_time;
+static uint32_t game_time;
 static uint16_t last_frame;
 static uint8_t score;
 static bool initialized = false;
@@ -32,6 +32,7 @@ static bool initialized = false;
 // Gun animation
 static int gun_x = GUN_X;
 static int gun_y = GUN_Y + 10;
+static int gun_anim_state = 0;
 
 // Level
 static segment* walls = NULL;
@@ -169,25 +170,25 @@ segment* bsp_wallgen(segment* walls, int* num_walls, int l, int r, int t, int b,
         walls[(*num_walls)++] = (segment) {
             {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
             {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
-            LINES
+            CHECK
         };
 
         walls[(*num_walls)++] = (segment) {
             {l + MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
             {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
-            LINES
+            CHECK
         };
 
         walls[(*num_walls)++] = (segment) {
             {r - MIN_ROOM_WIDTH, t + MIN_ROOM_WIDTH},
             {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
-            LINES
+            CHECK
         };
 
         walls[(*num_walls)++] = (segment) {
             {r - MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
             {l + MIN_ROOM_WIDTH, b - MIN_ROOM_WIDTH},
-            LINES
+            CHECK
         };
 
         return walls;
@@ -613,6 +614,7 @@ void render_map(vec2 p, float pa, bool is_shooting) {
         
         // Walk across lateral pixels affected by sprite, if any have depth more than enemy distance draw enemy.
         float enemy_dist = magnitude(e_vec);
+        printf("%f\n", enemy_dist);
         int scale_height = e.s[e.anim_state].height * 50 / enemy_dist;
         int scale_width = e.s[e.anim_state].width * 50 / enemy_dist;
         
@@ -631,6 +633,7 @@ void render_map(vec2 p, float pa, bool is_shooting) {
         if (!draw) continue;
 
         int enemy_screen_y = WALL_OFFSET - scale_height / 3;
+        printf("scr y %d\n", enemy_screen_y);
         if (is_shooting && enemy_angle >= -FOV_RADS / 8 && enemy_angle < FOV_RADS / 8) {
             oled_write_bmp_P_scaled(e.s_hurt[e.anim_state], scale_height, scale_width, enemy_screen_x - scale_width / 2, enemy_screen_y);
             if (--enemies[i].health < 0) {
@@ -667,12 +670,13 @@ void draw_gun(bool moving, bool show_flash) {
 
     // Walking animation
     if (moving) {
-        int time_elapsed = timer_elapsed32(game_time);
-        gun_x = GUN_X + 8 * sin((float) time_elapsed * 0.005);
-        gun_y = GUN_Y + 3 + 3 * cos((float) time_elapsed * 0.01);
+        gun_anim_state = (gun_anim_state + 5) % 7200;
+        gun_x = GUN_X + 6 * sin((float) gun_anim_state * 0.03);
+        gun_y = GUN_Y + 3 + 3 * cos((float) (gun_anim_state + 90) * 0.06);
     
     // Slowly move gun back to centre when not moving
     } else {
+        gun_anim_state = 0;
         if (gun_y != GUN_Y) gun_y += GUN_Y > gun_y ? 1 : -1;
         if (gun_x != GUN_X) {
             int inc = abs(GUN_X - gun_x) > 2 ? 2 : 1;
@@ -759,7 +763,6 @@ void oled_write_bmp_P_scaled(sprite img, int draw_height, int draw_width, int x,
 
         for (int j = 0; j < 8; j++) {
             int draw_row = draw_height * row / img.height;
-            if (draw_row >= UI_HEIGHT) return;
 
             int draw_row_lim = draw_height * (row + 1) / img.height;
             int draw_col = draw_width * col / img.width;
@@ -920,6 +923,10 @@ void doom_setup(void) {
     score = 0;
     has_key = false;
     initialized = true;
+
+    #ifdef RENDER_DEBUG
+        render();
+    #endif
 }
 
 void doom_dispose(void) {
@@ -1000,9 +1007,9 @@ void render_debug(dll* root, segment cone_l, segment cone_r) {
 
 void doom_update(controls c) {
 
-    if (!initialized || timer_elapsed(game_time) < START_TIME_MILLI) return;
+    if (!initialized || timer_elapsed32(game_time) < START_TIME_MILLI) return;
     
-    int time_elapsed = timer_elapsed32(last_frame);
+    uint16_t time_elapsed = timer_elapsed(last_frame);
     if (time_elapsed < FRAME_TIME_MILLI) return;
     
     if (shot_timer > 0) shot_timer--;
@@ -1032,16 +1039,18 @@ void doom_update(controls c) {
     oled_clear();
     
     render_map(p, pa, shot_timer > 0 && c.shoot);
-    #ifdef RENDER_DEBUG
-        last_frame = timer_read();
-        return;
-    #endif
 
     draw_gun(c.u, shot_timer > 0);
 
     for (int i = 0; i < SCREEN_WIDTH; i++) {
         oled_write_pixel(i, UI_HEIGHT, 1);
     }
+
+    #ifdef RENDER_DEBUG
+        last_frame = timer_read();
+        render();
+        return;
+    #endif
     
     // Displays the current game time
     oled_set_cursor(1, 7);

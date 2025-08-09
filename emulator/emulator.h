@@ -36,11 +36,12 @@ typedef struct led_t {
 static led_t led_usb_state = {1};
 // static uint8_t curr_wpm = 0;
 
-
+void render();
 int oled_write_pixel(int, int, bool);
-int timer_read();
-int timer_elapsed();
-uint32_t timer_elapsed32();
+uint16_t timer_read();
+uint32_t timer_read32();
+int timer_elapsed(int);
+uint32_t timer_elapsed32(uint32_t);
 int oled_set_cursor(int, int);
 int oled_write(const char*, int);
 int oled_write_P(const char*, int);
